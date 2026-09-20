@@ -1,8 +1,17 @@
 import React from 'react';
+import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Calculator, CloudOff, Lock, CheckCircle2, IndianRupee, ArrowRight, Download, Menu, X, FileText, Check } from 'lucide-react';
+import PrivacyPolicy from './PrivacyPolicy';
+import TermsOfService from './TermsOfService';
 
 function App() {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+  const location = useLocation();
+
+  // Scroll to top on route change
+  React.useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   return (
     <div className="min-h-screen font-sans">
@@ -10,17 +19,17 @@ function App() {
       <nav className="bg-bg-warm sticky top-0 z-50 border-b border-border-color">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
-            <div className="flex items-center">
+            <Link to="/" className="flex items-center">
               <img src="/logo.png" alt="InvGen Logo" className="h-10 w-10 object-contain rounded-lg border border-border-color shadow-sm" />
               <span className="ml-3 text-2xl font-bold tracking-tight">InvGen</span>
-            </div>
+            </Link>
             
             {/* Desktop Nav */}
             <div className="hidden md:flex items-center space-x-8">
-              <a href="#features" className="text-ink hover:text-ink-secondary font-medium transition-colors">Features</a>
-              <a href="#how-it-works" className="text-ink hover:text-ink-secondary font-medium transition-colors">How it Works</a>
-              <a href="#templates" className="text-ink hover:text-ink-secondary font-medium transition-colors">Templates</a>
-              <a href="#pricing" className="text-ink hover:text-ink-secondary font-medium transition-colors">Pricing</a>
+              <Link to="/#features" className="text-ink hover:text-ink-secondary font-medium transition-colors">Features</Link>
+              <Link to="/#how-it-works" className="text-ink hover:text-ink-secondary font-medium transition-colors">How it Works</Link>
+              <Link to="/#templates" className="text-ink hover:text-ink-secondary font-medium transition-colors">Templates</Link>
+              <Link to="/#pricing" className="text-ink hover:text-ink-secondary font-medium transition-colors">Pricing</Link>
               <a href="https://app.invgen.com" className="bg-ink text-surface px-6 py-2.5 rounded-xl font-semibold hover:bg-ink-secondary transition-all shadow-sm">
                 Open Web App
               </a>
@@ -41,10 +50,10 @@ function App() {
         {/* Mobile Nav */}
         {isMenuOpen && (
           <div className="md:hidden bg-surface border-b border-border-color px-4 py-4 space-y-4">
-            <a href="#features" className="block text-ink font-medium">Features</a>
-            <a href="#how-it-works" className="block text-ink font-medium">How it Works</a>
-            <a href="#templates" className="block text-ink font-medium">Templates</a>
-            <a href="#pricing" className="block text-ink font-medium">Pricing</a>
+            <Link to="/#features" onClick={() => setIsMenuOpen(false)} className="block text-ink font-medium">Features</Link>
+            <Link to="/#how-it-works" onClick={() => setIsMenuOpen(false)} className="block text-ink font-medium">How it Works</Link>
+            <Link to="/#templates" onClick={() => setIsMenuOpen(false)} className="block text-ink font-medium">Templates</Link>
+            <Link to="/#pricing" onClick={() => setIsMenuOpen(false)} className="block text-ink font-medium">Pricing</Link>
             <a href="https://app.invgen.com" className="block w-full text-center bg-ink text-surface px-5 py-3 rounded-xl font-medium">
               Open Web App
             </a>
@@ -52,6 +61,65 @@ function App() {
         )}
       </nav>
 
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsOfService />} />
+      </Routes>
+
+      {/* Footer */}
+      <footer className="bg-bg-warm py-16 border-t border-border-color">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-4 gap-12 md:gap-8">
+            <div className="col-span-2">
+              <div className="flex items-center mb-6">
+                <img src="/logo.png" alt="InvGen Logo" className="h-8 w-8 object-contain rounded-md border border-border-color shadow-sm grayscale opacity-80" />
+                <span className="ml-3 text-xl font-bold">InvGen</span>
+              </div>
+              <p className="text-ink-secondary max-w-sm">The smartest GST Invoice Generator for Indian Businesses. Built for speed, accuracy, and compliance.</p>
+            </div>
+            <div>
+              <h3 className="font-semibold text-ink mb-6 uppercase tracking-wider text-sm">Product</h3>
+              <ul className="space-y-3">
+                <li><a href="https://app.invgen.com" className="text-ink-secondary hover:text-ink transition-colors">Web App</a></li>
+                <li><a href="#download" className="text-ink-secondary hover:text-ink transition-colors">Android App</a></li>
+                <li><a href="#download" className="text-ink-secondary hover:text-ink transition-colors">iOS App</a></li>
+                <li><a href="#download" className="text-ink-secondary hover:text-ink transition-colors">Desktop App</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="font-semibold text-ink mb-6 uppercase tracking-wider text-sm">Legal</h3>
+              <ul className="space-y-3">
+                <li><Link to="/privacy-policy" className="text-ink-secondary hover:text-ink transition-colors">Privacy Policy</Link></li>
+                <li><Link to="/terms" className="text-ink-secondary hover:text-ink transition-colors">Terms of Service</Link></li>
+                <li><a href="mailto:support@invgen.com" className="text-ink-secondary hover:text-ink transition-colors">Contact Us</a></li>
+              </ul>
+            </div>
+          </div>
+          <div className="mt-16 pt-8 border-t border-border-color text-ink-tertiary flex flex-col md:flex-row justify-between items-center">
+            <p>&copy; {new Date().getFullYear()} InvGen. All rights reserved.</p>
+            <p className="mt-2 md:mt-0 font-medium">Built in India 🇮🇳</p>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+function Home() {
+  const location = useLocation();
+
+  React.useEffect(() => {
+    if (location.hash) {
+      const element = document.getElementById(location.hash.replace('#', ''));
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  }, [location]);
+
+  return (
+    <>
       {/* Hero Section */}
       <section className="pt-20 pb-28 lg:pt-32 lg:pb-40 overflow-hidden relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -218,43 +286,7 @@ function App() {
           </a>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="bg-bg-warm py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-4 gap-12 md:gap-8">
-            <div className="col-span-2">
-              <div className="flex items-center mb-6">
-                <img src="/logo.png" alt="InvGen Logo" className="h-8 w-8 object-contain rounded-md border border-border-color shadow-sm grayscale" />
-                <span className="ml-3 text-xl font-bold">InvGen</span>
-              </div>
-              <p className="text-ink-secondary max-w-sm">The smartest GST Invoice Generator for Indian Businesses. Built for speed, accuracy, and compliance.</p>
-            </div>
-            <div>
-              <h3 className="font-semibold text-ink mb-6 uppercase tracking-wider text-sm">Product</h3>
-              <ul className="space-y-3">
-                <li><a href="https://app.invgen.com" className="text-ink-secondary hover:text-ink transition-colors">Web App</a></li>
-                <li><a href="#download" className="text-ink-secondary hover:text-ink transition-colors">Android App</a></li>
-                <li><a href="#download" className="text-ink-secondary hover:text-ink transition-colors">iOS App</a></li>
-                <li><a href="#download" className="text-ink-secondary hover:text-ink transition-colors">Desktop App</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold text-ink mb-6 uppercase tracking-wider text-sm">Legal</h3>
-              <ul className="space-y-3">
-                <li><a href="#" className="text-ink-secondary hover:text-ink transition-colors">Privacy Policy</a></li>
-                <li><a href="#" className="text-ink-secondary hover:text-ink transition-colors">Terms of Service</a></li>
-                <li><a href="#" className="text-ink-secondary hover:text-ink transition-colors">Contact Us</a></li>
-              </ul>
-            </div>
-          </div>
-          <div className="mt-16 pt-8 border-t border-border-color text-ink-tertiary flex flex-col md:flex-row justify-between items-center">
-            <p>&copy; {new Date().getFullYear()} InvGen. All rights reserved.</p>
-            <p className="mt-2 md:mt-0">Built in India</p>
-          </div>
-        </div>
-      </footer>
-    </div>
+    </>
   );
 }
 
