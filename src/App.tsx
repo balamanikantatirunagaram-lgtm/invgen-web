@@ -45,9 +45,13 @@ function App() {
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
+  // Landing chrome only outside the authenticated app (/app/* has its own shell).
+  const isApp = location.pathname.startsWith('/app');
+
   return (
     <div className="min-h-screen font-sans">
       {/* Navigation */}
+      {!isApp && (
       <nav className="bg-bg-warm sticky top-0 z-50 border-b border-border-color">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
@@ -94,6 +98,7 @@ function App() {
           </div>
         )}
       </nav>
+      )}
 
       <Routes>
         <Route path="/" element={<Home />} />
@@ -124,6 +129,7 @@ function App() {
       </Routes>
 
       {/* Footer */}
+      {!isApp && (
       <footer className="bg-bg-warm py-16 border-t border-border-color">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-4 gap-12 md:gap-8">
@@ -158,6 +164,7 @@ function App() {
           </div>
         </div>
       </footer>
+      )}
     </div>
   );
 }

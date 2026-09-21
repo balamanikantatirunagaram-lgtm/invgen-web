@@ -40,6 +40,10 @@ function money(v: number): string {
   return Number.isFinite(v) ? fmtInr(v) : '—';
 }
 
+/** Compact inputs for dense table cells (room for values like "18" / "Nos"). */
+const cellCls =
+  'w-full rounded-xl border border-border-strong bg-surface px-2.5 py-2 text-sm outline-none focus:border-ink transition-colors placeholder:text-ink-tertiary';
+
 // ---------------------------------------------------------------------------
 // Searchable client picker
 // ---------------------------------------------------------------------------
@@ -170,8 +174,8 @@ function ItemRow({
 
   return (
     <tr className="border-b border-border-color last:border-0 align-top">
-      <td className="px-3 py-2.5 text-sm font-bold text-ink-tertiary w-8">{index + 1}</td>
-      <td className="px-3 py-2.5 min-w-[220px]">
+      <td className="px-2 py-2.5 text-sm font-bold text-ink-tertiary w-8">{index + 1}</td>
+      <td className="px-2 py-2.5 min-w-[200px]">
         <select
           value={item.productId}
           onChange={(e) => {
@@ -179,7 +183,7 @@ function ItemRow({
             if (p) selectProduct(item.key, p);
             else patch({ productId: '' });
           }}
-          className={`${inputCls} mb-1.5 text-sm py-2`}
+          className={`${cellCls} mb-1.5`}
           aria-label={`Row ${index + 1} catalog product`}
         >
           <option value="">Manual entry…</option>
@@ -193,7 +197,7 @@ function ItemRow({
           value={item.name}
           onChange={(e) => patch({ name: e.target.value })}
           placeholder="Product / service name *"
-          className={`${inputCls} text-sm py-2`}
+          className={cellCls}
           aria-label={`Row ${index + 1} name`}
         />
         <input
@@ -201,23 +205,23 @@ function ItemRow({
           onChange={(e) => patch({ hsnCode: e.target.value })}
           placeholder="HSN"
           inputMode="numeric"
-          className={`${inputCls} text-sm py-2 mt-1.5 font-mono`}
+          className={`${cellCls} mt-1.5 font-mono`}
           aria-label={`Row ${index + 1} HSN`}
         />
       </td>
-      <td className="px-3 py-2.5 w-24">
+      <td className="px-2 py-2.5 w-[104px]">
         <input
           value={Number.isFinite(item.quantity) ? String(item.quantity) : ''}
           onChange={(e) => patch({ quantity: numInput(e.target.value, NaN) })}
           inputMode="decimal"
           placeholder="Qty"
-          className={`${inputCls} text-sm py-2`}
+          className={cellCls}
           aria-label={`Row ${index + 1} quantity`}
         />
         <select
           value={item.unit}
           onChange={(e) => patch({ unit: e.target.value })}
-          className={`${inputCls} text-sm py-2 mt-1.5`}
+          className={`${cellCls} mt-1.5`}
           aria-label={`Row ${index + 1} unit`}
         >
           {UNITS.map((u) => (
@@ -229,29 +233,29 @@ function ItemRow({
             value={item.customUnit}
             onChange={(e) => patch({ customUnit: e.target.value })}
             placeholder="Custom unit"
-            className={`${inputCls} text-sm py-2 mt-1.5`}
+            className={`${cellCls} mt-1.5`}
             aria-label={`Row ${index + 1} custom unit`}
           />
         )}
       </td>
-      <td className="px-3 py-2.5 w-28">
+      <td className="px-2 py-2.5 w-[112px]">
         <input
           value={Number.isFinite(item.rate) ? String(item.rate) : ''}
           onChange={(e) => patch({ rate: numInput(e.target.value, NaN) })}
           inputMode="decimal"
           placeholder="0.00"
-          className={`${inputCls} text-sm py-2`}
+          className={cellCls}
           aria-label={`Row ${index + 1} rate`}
         />
       </td>
-      <td className="px-3 py-2.5 w-24">
+      <td className="px-2 py-2.5 w-[104px]">
         <input
           value={Number.isFinite(item.gstRate) ? String(item.gstRate) : ''}
           onChange={(e) => patch({ gstRate: numInput(e.target.value, NaN) })}
           inputMode="decimal"
           list={`gst-slabs-${item.key}`}
           placeholder="GST %"
-          className={`${inputCls} text-sm py-2`}
+          className={cellCls}
           aria-label={`Row ${index + 1} GST percent`}
         />
         <datalist id={`gst-slabs-${item.key}`}>
@@ -260,7 +264,7 @@ function ItemRow({
           ))}
         </datalist>
       </td>
-      <td className="px-3 py-2.5 text-sm text-right whitespace-nowrap">
+      <td className="px-2 py-2.5 text-sm text-right whitespace-nowrap">
         <p className="font-semibold">{money(item.taxableValue)}</p>
         <p className="text-xs text-ink-tertiary">
           {isInterstate
@@ -270,7 +274,7 @@ function ItemRow({
         <p className="font-bold mt-0.5">{money(item.itemTotal)}</p>
         <p className="text-xs text-ink-tertiary">{effectiveUnit(item)} · HSN {item.hsnCode === '' ? '—' : item.hsnCode}</p>
       </td>
-      <td className="px-3 py-2.5 w-10">
+      <td className="px-2 py-2.5 w-10">
         <button
           onClick={() => removeItem(item.key)}
           disabled={!deletable}
@@ -455,7 +459,7 @@ export default function BuilderPage() {
         </div>
       )}
 
-      <div className="grid xl:grid-cols-[340px_minmax(0,1fr)_300px] lg:grid-cols-[300px_minmax(0,1fr)] gap-4 items-start">
+      <div className="grid 2xl:grid-cols-[320px_minmax(0,1fr)_300px] xl:grid-cols-[300px_minmax(0,1fr)] gap-4 items-start">
         {/* Left: details + parties */}
         <div className="space-y-4">
           <Card className="p-5 space-y-4">
@@ -468,7 +472,7 @@ export default function BuilderPage() {
                 className={inputCls}
               />
             </Field>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3">
               <Field label="PO Number">
                 <input
                   value={s.poNumber}
@@ -575,11 +579,11 @@ export default function BuilderPage() {
             </button>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px]">
+            <table className="w-full min-w-[620px]">
               <thead>
                 <tr className="border-b border-border-color bg-surface-soft/60 text-left">
                   {['#', 'Product', 'Qty / Unit', 'Rate', 'GST %', 'Tax / Total', ''].map((h) => (
-                    <th key={h} className="px-3 py-2.5 text-xs font-bold uppercase tracking-wider text-ink-tertiary">
+                    <th key={h} className="px-2 py-2.5 text-xs font-bold uppercase tracking-wider text-ink-tertiary">
                       {h}
                     </th>
                   ))}
@@ -601,7 +605,7 @@ export default function BuilderPage() {
         </Card>
 
         {/* Right: sticky totals */}
-        <div className="lg:col-span-2 xl:col-span-1">
+        <div className="xl:col-span-2 2xl:col-span-1">
           <div className="xl:sticky xl:top-24 space-y-4">
             <Card className="p-5">
               <h2 className="font-bold mb-4">Summary</h2>
@@ -643,7 +647,7 @@ export default function BuilderPage() {
               </p>
             </Card>
 
-            <div className="grid grid-cols-2 xl:grid-cols-1 gap-2">
+            <div className="grid grid-cols-2 2xl:grid-cols-1 gap-2">
               <button
                 onClick={() => doSave(false)}
                 disabled={saving || cancelled}

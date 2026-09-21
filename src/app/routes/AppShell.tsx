@@ -17,12 +17,13 @@ import { useSubscribeTables } from '../hooks/queries';
 import { Toaster } from '../components/toast';
 
 const NAV = [
-  { to: '/app/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/app/invoices/new', label: 'New Invoice', icon: FilePlus2 },
-  { to: '/app/invoices', label: 'Invoices', icon: ReceiptText },
-  { to: '/app/clients', label: 'Clients', icon: Users },
-  { to: '/app/products', label: 'Products', icon: Package },
-  { to: '/app/settings', label: 'Settings', icon: Settings },
+  { to: '/app/dashboard', label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { to: '/app/invoices/new', label: 'New Invoice', icon: FilePlus2, end: true },
+  { to: '/app/invoices', label: 'Invoices', icon: ReceiptText, end: true },
+  { to: '/app/clients', label: 'Clients', icon: Users, end: true },
+  { to: '/app/products', label: 'Products', icon: Package, end: true },
+  // Settings stays prefix-active so it highlights on /app/settings/* children.
+  { to: '/app/settings', label: 'Settings', icon: Settings, end: false },
 ];
 
 function navClass({ isActive }: { isActive: boolean }) {
@@ -57,8 +58,8 @@ export default function AppShell() {
         <span className="ml-3 text-xl font-bold tracking-tight">InvGen</span>
       </Link>
       <nav className="flex-1 px-3 space-y-1">
-        {NAV.map(({ to, label, icon: Icon }) => (
-          <NavLink key={to} to={to} className={navClass} onClick={() => setOpen(false)}>
+        {NAV.map(({ to, label, icon: Icon, end }) => (
+          <NavLink key={to} to={to} end={end} className={navClass} onClick={() => setOpen(false)}>
             <Icon className="h-5 w-5" />
             {label}
           </NavLink>
