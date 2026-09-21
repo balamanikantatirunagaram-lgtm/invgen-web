@@ -30,7 +30,7 @@ export default function RequireAuth() {
       const meta = (s.user.user_metadata ?? {}) as Record<string, string>;
       const { data: row } = await supabase
         .from('profiles')
-        .select('gst_verified, gstin')
+        .select('gst_verified, gst_exempt, gstin')
         .eq('id', s.user.id)
         .maybeSingle();
       setSession(
@@ -41,7 +41,11 @@ export default function RequireAuth() {
           photoURL: meta.avatar_url ?? meta.picture ?? null,
         },
         row
-          ? { gstVerified: Boolean(row.gst_verified), gstin: row.gstin ?? null }
+          ? {
+              gstVerified: Boolean(row.gst_verified),
+              gstExempt: Boolean(row.gst_exempt),
+              gstin: row.gstin ?? null,
+            }
           : null,
       );
     };

@@ -51,6 +51,8 @@ export interface UserProfile {
   tradeName: string;
   address: string;
   gstVerified: boolean;
+  /** Non-GST (Bill of Supply) mode — passes guards without verification. */
+  gstExempt: boolean;
   verifiedAt: Date | null;
   verificationStatus: string;
 }
@@ -65,6 +67,7 @@ export function userProfileFromRow(j: Row, uid: string): UserProfile {
     tradeName: rowString(j['trade_name']),
     address: rowString(j['address']),
     gstVerified: rowBool(j['gst_verified']),
+    gstExempt: rowBool(j['gst_exempt']),
     verifiedAt: rowDateTime(j['verified_at']),
     verificationStatus: rowString(j['verification_status']),
   };
@@ -79,6 +82,7 @@ export function userProfileToRow(p: Omit<UserProfile, 'uid'>): Row {
     trade_name: p.tradeName,
     address: p.address,
     gst_verified: p.gstVerified,
+    gst_exempt: p.gstExempt,
     verified_at: p.verifiedAt?.toISOString() ?? (p.gstVerified ? new Date().toISOString() : null),
     verification_status: p.verificationStatus,
   };
@@ -107,6 +111,8 @@ export interface CompanySettings {
   companyName: string;
   address: string;
   gstin: string;
+  /** 2-digit state code for place-of-supply when no GSTIN exists. */
+  supplyState: string;
   mobile: string;
   email: string;
   bankDetails: BankDetails;
@@ -146,6 +152,7 @@ export function companyFromRow(j: Row, id: string): CompanySettings {
     companyName: rowString(j['company_name']),
     address: rowString(j['address']),
     gstin: rowString(j['gstin']).toUpperCase(),
+    supplyState: rowString(j['supply_state']).toUpperCase(),
     mobile: rowString(j['mobile']),
     email: rowString(j['email']),
     bankDetails: bankFromRow(rowMap(j['bank'])),
@@ -164,6 +171,7 @@ export function companyToRow(c: Omit<CompanySettings, 'id' | 'updatedAt'>): Row 
     company_name: c.companyName,
     address: c.address,
     gstin: c.gstin.toUpperCase(),
+    supply_state: c.supplyState.toUpperCase(),
     mobile: c.mobile,
     email: c.email,
     bank: bankToRow(c.bankDetails),
@@ -200,6 +208,8 @@ export interface Client {
   businessName: string;
   tradeName: string;
   gstin: string;
+  /** 2-digit state code for buyers without GSTIN. */
+  supplyState: string;
   billingAddress: string;
   shippingAddress: string;
   mobile: string;
@@ -218,6 +228,7 @@ export function clientFromRow(j: Row, id: string): Client {
     businessName: rowString(j['business_name']),
     tradeName: rowString(j['trade_name']),
     gstin: rowString(j['gstin']).toUpperCase(),
+    supplyState: rowString(j['supply_state']).toUpperCase(),
     billingAddress: rowString(j['billing_address']),
     shippingAddress: rowString(j['shipping_address']),
     mobile: rowString(j['mobile']),
@@ -231,6 +242,7 @@ export function clientToRow(c: Omit<Client, 'id'>): Row {
     business_name: c.businessName,
     trade_name: c.tradeName,
     gstin: c.gstin.toUpperCase(),
+    supply_state: c.supplyState.toUpperCase(),
     billing_address: c.billingAddress,
     shipping_address: c.shippingAddress,
     mobile: c.mobile,
@@ -339,6 +351,8 @@ export interface Invoice {
   grandTotal: number;
   amountInWords: string;
   status: string;
+  /** Per-invoice PDF template (fallback: company default). */
+  template: InvoiceTemplate;
   createdAt: Date | null;
   updatedAt: Date | null;
   cancelledAt: Date | null;
@@ -432,6 +446,7 @@ export function invoiceFromRow(j: Row): Invoice {
     grandTotal: rowDouble(j['grand_total']),
     amountInWords: rowString(j['amount_in_words']),
     status: status === '' ? 'issued' : status,
+    template: templateFromId(rowString(j['template']) || undefined),
     createdAt: rowDateTime(j['created_at']),
     updatedAt: rowDateTime(j['updated_at']),
     cancelledAt: rowDateTime(j['cancelled_at']),
@@ -460,6 +475,7 @@ export function invoiceToRow(inv: Omit<Invoice, 'invoiceId' | 'createdAt' | 'upd
     grand_total: inv.grandTotal,
     amount_in_words: inv.amountInWords,
     status: inv.status,
+    template: inv.template,
     // client_search legacy — search uses ilike; column keeps default ''.
   };
 }

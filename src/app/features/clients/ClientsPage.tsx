@@ -8,6 +8,7 @@ import {
   useUpdateClient,
 } from '../../hooks/queries';
 import { userMessage } from '../../lib/errors';
+import { INDIAN_STATES, normalizeStateCode } from '../../lib/states';
 import {
   requiredField,
   validateEmail,
@@ -33,6 +34,8 @@ import { toast } from '../../components/toastBus';
 interface ClientForm {
   businessName: string;
   gstin: string;
+  /** Required when GSTIN is empty (place-of-supply fallback). */
+  supplyState: string;
   billingAddress: string;
   shippingAddress: string;
   mobile: string;
@@ -42,6 +45,7 @@ interface ClientForm {
 const EMPTY_FORM: ClientForm = {
   businessName: '',
   gstin: '',
+  supplyState: '',
   billingAddress: '',
   shippingAddress: '',
   mobile: '',
@@ -52,6 +56,7 @@ function toForm(c: Client): ClientForm {
   return {
     businessName: c.businessName,
     gstin: c.gstin,
+    supplyState: c.supplyState,
     billingAddress: c.billingAddress,
     shippingAddress: c.shippingAddress,
     mobile: c.mobile,
@@ -125,6 +130,9 @@ export default function ClientsPage() {
     if (nameErr) e.businessName = nameErr;
     const gstErr = validateGstin(form.gstin, false);
     if (gstErr) e.gstin = gstErr;
+    if (form.gstin.trim() === '' && normalizeStateCode(form.supplyState) === '') {
+      e.supplyState = 'State is required when GSTIN is empty';
+    }
     const mobErr = validateMobile(form.mobile, false);
     if (mobErr) e.mobile = mobErr;
     const emailErr = validateEmail(form.email, false);
@@ -137,6 +145,7 @@ export default function ClientsPage() {
       tradeName: editing?.tradeName ?? '',
       businessName: form.businessName.trim(),
       gstin: form.gstin.trim().toUpperCase(),
+      supplyState: normalizeStateCode(form.supplyState),
       billingAddress: form.billingAddress.trim(),
       shippingAddress: form.shippingAddress.trim(),
       mobile: form.mobile.trim(),
@@ -317,6 +326,25 @@ export default function ClientsPage() {
               </div>
             </Field>
             {verifyNote && <p className="text-sm text-ink-secondary -mt-2">{verifyNote}</p>}
+            <Field
+              label="State"
+              required={form.gstin.trim() === ''}
+              error={errors.supplyState}
+              hint="Place of supply — required when GSTIN is empty"
+            >
+              <select
+                value={form.supplyState}
+                onChange={(e) => set('supplyState', e.target.value)}
+                className={inputCls}
+              >
+                <option value="">Select state…</option>
+                {INDIAN_STATES.map((s) => (
+                  <option key={s.code} value={s.code}>
+                    {s.code} — {s.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
             <Field label="Billing Address" hint="Autofilled on verify">
               <textarea
                 value={form.billingAddress}

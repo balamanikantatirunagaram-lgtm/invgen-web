@@ -5,7 +5,8 @@ import { BadgeCheck, Loader2 } from 'lucide-react';
 import { getSupabase } from '../../supabase/client';
 import { useSession } from '../../stores/session';
 import { userMessage } from '../../lib/errors';
-import { validateGstin } from '../../lib/validators';
+import { normalizeStateCode, INDIAN_STATES } from '../../lib/states';
+import { requiredField, validateGstin } from '../../lib/validators';
 import { fetchCompany, saveCompany } from '../../api/companies';
 import { fetchProfile, saveProfile } from '../../api/profiles';
 import {
@@ -15,13 +16,15 @@ import {
 } from '../../api/gstVerify';
 
 /**
- * Step 2/2 GST verification — mirrors mobile GstSignupScreen:
+ * Step 2/2 onboarding — mirrors mobile GstSignupScreen + exempt path:
  * GSTIN → registry lookup (Edge Function proxy, 24h cache) → result card →
- * consent → writes `profiles` + `companies` → waits for verified row →
- * navigates to /app/dashboard.
+ * consent → writes `profiles` + `companies` → waits for the row → dashboard.
+ * "I don't have a GSTIN" switches to exempt (Bill of Supply) mode:
+ * display name + state + address → same tables with gst_exempt=true.
+ * Also serves exempt→verified upgrades.
  */
 export default function VerifyGstPage() {
-  const { user } = useSession();
+  const { user, profile } = useSession();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -32,6 +35,16 @@ export default function VerifyGstPage() {
   const [consent, setConsent] = useState(false);
   const [result, setResult] = useState<GstVerificationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Exempt (no-GSTIN) mode.
+  const [skipped, setSkipped] = useState(false);
+  const [exName, setExName] = useState('');
+  const [exState, setExState] = useState('');
+  const [exAddr, setExAddr] = useState('');
+  const [exConsent, setExConsent] = useState(false);
+  const [exErrors, setExErrors] = useState<Record<string, string>>({});
+
+  const upgrading = profile?.gstExempt === true;
 
   const doVerify = async () => {
     const v = validateGstin(gstin);
@@ -55,7 +68,7 @@ export default function VerifyGstPage() {
     setSaving(true);
     setError(null);
     try {
-      // 1. Profile row with verification evidence.
+      // 1. Profile row with verification evidence (clears any exempt flag).
       await saveProfile(user.uid, {
         email: user.email,
         displayName: user.displayName || gstDisplayName(result),
@@ -64,6 +77,7 @@ export default function VerifyGstPage() {
         tradeName: result.tradeName,
         address: result.address,
         gstVerified: true,
+        gstExempt: false,
         verifiedAt: new Date(),
         verificationStatus: result.status,
       });
@@ -75,6 +89,7 @@ export default function VerifyGstPage() {
           gstDisplayName(result) !== '' ? gstDisplayName(result) : (existing?.companyName ?? ''),
         address: result.address !== '' ? result.address : (existing?.address ?? ''),
         gstin: result.gstin,
+        supplyState: existing?.supplyState ?? '',
         mobile: existing?.mobile ?? '',
         email: existing?.email ?? user.email,
         bankDetails: existing?.bankDetails ?? {
@@ -91,31 +106,98 @@ export default function VerifyGstPage() {
         invoiceTemplate: existing?.invoiceTemplate ?? 'classic',
       });
 
-      // 3. Refresh guards: invalidate + wait for the verified row to land
+      // 3. Refresh guards: invalidate + wait for the row to land
       // (navigating early would bounce straight back here).
-      const ownerId = user.uid;
-      await queryClient.invalidateQueries({ queryKey: ['app', ownerId] });
-      const deadline = Date.now() + 15_000;
-      let verified = false;
-      while (Date.now() < deadline) {
-        const p = await fetchProfile(ownerId).catch(() => null);
-        if (p?.gstVerified) {
-          verified = true;
-          useSession.getState().setSession(user, {
-            gstVerified: true,
-            gstin: p.gstin,
-          });
-          break;
-        }
-        await new Promise((r) => setTimeout(r, 750));
-      }
-      if (!verified) {
-        // Continue anyway — realtime/polling will correct the route shortly.
-        useSession.getState().setSession(user, { gstVerified: true, gstin: result.gstin });
-      }
+      await waitForAccess(user.uid, result.gstin);
       navigate('/app/dashboard', { replace: true });
     } catch (e) {
       setError(userMessage(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /** Wait for the profile row (verified OR exempt) to land, then mirror it. */
+  const waitForAccess = async (ownerId: string, fallbackGstin: string | null) => {
+    const u = useSession.getState().user;
+    await queryClient.invalidateQueries({ queryKey: ['app', ownerId] });
+    const deadline = Date.now() + 15_000;
+    while (Date.now() < deadline) {
+      const p = await fetchProfile(ownerId).catch(() => null);
+      if (p?.gstVerified || p?.gstExempt) {
+        if (u) {
+          useSession.getState().setSession(u, {
+            gstVerified: p.gstVerified,
+            gstExempt: p.gstExempt,
+            gstin: p.gstin,
+          });
+        }
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 750));
+    }
+    // Continue anyway — realtime/polling will correct the route shortly.
+    if (u) {
+      const cur = useSession.getState().profile;
+      useSession.getState().setSession(u, {
+        gstVerified: cur?.gstVerified ?? false,
+        gstExempt: cur?.gstExempt ?? true,
+        gstin: fallbackGstin,
+      });
+    }
+  };
+
+  /** Exempt path: no GSTIN → Bill of Supply mode (no registry lookup). */
+  const doSkipConfirm = async () => {
+    if (!user) return;
+    const e: Record<string, string> = {};
+    const n = requiredField(exName, 'Business name');
+    if (n) e.exName = n;
+    if (normalizeStateCode(exState) === '') e.exState = 'Select your state';
+    setExErrors(e);
+    if (Object.keys(e).length > 0) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await saveProfile(user.uid, {
+        email: user.email,
+        displayName: user.displayName || exName.trim(),
+        gstin: '',
+        legalName: '',
+        tradeName: '',
+        address: exAddr.trim(),
+        gstVerified: false,
+        gstExempt: true,
+        verifiedAt: null,
+        verificationStatus: 'exempt',
+      });
+
+      const existing = await fetchCompany(user.uid).catch(() => null);
+      await saveCompany(user.uid, {
+        companyName: exName.trim() !== '' ? exName.trim() : (existing?.companyName ?? ''),
+        address: exAddr.trim() !== '' ? exAddr.trim() : (existing?.address ?? ''),
+        gstin: '',
+        supplyState: normalizeStateCode(exState),
+        mobile: existing?.mobile ?? '',
+        email: existing?.email ?? user.email,
+        bankDetails: existing?.bankDetails ?? {
+          bankName: '',
+          accountNumber: '',
+          ifscCode: '',
+          branchName: '',
+        },
+        termsAndConditions: existing?.termsAndConditions ?? [],
+        signatoryLabel: existing?.signatoryLabel ?? 'Authorised Signatory',
+        logoUrl: existing?.logoUrl ?? '',
+        logoBase64: existing?.logoBase64 ?? '',
+        invoicePrefix: existing?.invoicePrefix ?? 'INV-',
+        invoiceTemplate: existing?.invoiceTemplate ?? 'classic',
+      });
+
+      await waitForAccess(user.uid, null);
+      navigate('/app/dashboard', { replace: true });
+    } catch (err) {
+      setError(userMessage(err));
     } finally {
       setSaving(false);
     }
@@ -168,10 +250,13 @@ export default function VerifyGstPage() {
           </div>
         )}
 
-        <h1 className="text-3xl font-bold tracking-tight mb-2">Enter your GSTIN</h1>
+        <h1 className="text-3xl font-bold tracking-tight mb-2">
+          {upgrading ? 'Add your GSTIN' : 'Enter your GSTIN'}
+        </h1>
         <p className="text-ink-secondary mb-6">
-          We fetch legal name, trade name and address from the registry to prefill
-          your invoices. Lookups are cached for 24 hours.
+          {upgrading
+            ? 'Verify a GSTIN to unlock tax invoices for this workspace.'
+            : 'We fetch legal name, trade name and address from the registry to prefill your invoices. Lookups are cached for 24 hours.'}
         </p>
 
         <div className="bg-surface border border-border-color rounded-3xl p-6 sm:p-8 shadow-sm">
@@ -208,7 +293,111 @@ export default function VerifyGstPage() {
               {error}
             </p>
           )}
+
+          {!upgrading && !skipped && (
+            <button
+              onClick={() => {
+                setSkipped(true);
+                setError(null);
+              }}
+              className="mt-4 w-full text-sm font-semibold text-ink-secondary hover:text-ink py-1"
+            >
+              I don&apos;t have a GSTIN — continue without one
+            </button>
+          )}
         </div>
+
+        {skipped && !upgrading && (
+          <div className="mt-6 bg-surface border border-border-color rounded-3xl p-6 sm:p-8 shadow-sm">
+            <h2 className="text-xl font-bold mb-1">Continue without GSTIN</h2>
+            <p className="text-sm text-ink-secondary mb-6">
+              You&apos;ll issue <strong>Bills of Supply</strong> (no GST charged).
+              Add a GSTIN later to unlock tax invoices.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="ex-name" className="block text-sm font-semibold mb-1.5">
+                  Business name *
+                </label>
+                <input
+                  id="ex-name"
+                  value={exName}
+                  onChange={(e) => setExName(e.target.value)}
+                  placeholder="e.g. Sharma Freelance Services"
+                  className="w-full rounded-xl border border-border-strong bg-bg-warm px-4 py-3 outline-none focus:border-ink transition-colors"
+                />
+                {exErrors.exName && <p className="mt-1 text-sm text-red-700">{exErrors.exName}</p>}
+              </div>
+              <div>
+                <label htmlFor="ex-state" className="block text-sm font-semibold mb-1.5">
+                  State (place of supply) *
+                </label>
+                <select
+                  id="ex-state"
+                  value={exState}
+                  onChange={(e) => setExState(e.target.value)}
+                  className="w-full rounded-xl border border-border-strong bg-bg-warm px-4 py-3 outline-none focus:border-ink transition-colors"
+                >
+                  <option value="">Select state…</option>
+                  {INDIAN_STATES.map((s) => (
+                    <option key={s.code} value={s.code}>
+                      {s.code} — {s.name}
+                    </option>
+                  ))}
+                </select>
+                {exErrors.exState && <p className="mt-1 text-sm text-red-700">{exErrors.exState}</p>}
+              </div>
+              <div>
+                <label htmlFor="ex-addr" className="block text-sm font-semibold mb-1.5">
+                  Business address
+                </label>
+                <textarea
+                  id="ex-addr"
+                  value={exAddr}
+                  onChange={(e) => setExAddr(e.target.value)}
+                  rows={2}
+                  placeholder="Shop/office address for your bills"
+                  className="w-full rounded-xl border border-border-strong bg-bg-warm px-4 py-3 outline-none focus:border-ink transition-colors"
+                />
+              </div>
+            </div>
+
+            <label className="mt-5 flex items-start gap-3 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={exConsent}
+                onChange={(e) => setExConsent(e.target.checked)}
+                className="mt-1 h-4 w-4 accent-black"
+              />
+              <span className="text-ink-secondary">
+                I agree to the{' '}
+                <Link to="/terms" className="underline text-ink">
+                  Terms of Service
+                </Link>{' '}
+                and{' '}
+                <Link to="/privacy-policy" className="underline text-ink">
+                  Privacy Policy
+                </Link>
+                , and I understand I can only issue Bills of Supply (no GST) until I verify a GSTIN.
+              </span>
+            </label>
+
+            <button
+              onClick={doSkipConfirm}
+              disabled={saving || !exConsent}
+              className="mt-4 w-full py-3.5 rounded-xl bg-ink text-surface font-semibold hover:bg-ink-secondary transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+            >
+              {saving && <Loader2 className="h-5 w-5 animate-spin" />}
+              {saving ? 'Saving…' : 'Continue without GSTIN'}
+            </button>
+            <button
+              onClick={() => setSkipped(false)}
+              className="mt-3 w-full text-sm font-semibold text-ink-secondary hover:text-ink"
+            >
+              ← Back to GSTIN verification
+            </button>
+          </div>
+        )}
 
         {result && (
           <div className="mt-6 bg-surface border border-border-color rounded-3xl p-6 sm:p-8 shadow-sm">

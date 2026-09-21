@@ -1,14 +1,18 @@
-import { describe, expect, test } from 'vitest';
+import { beforeEach, describe, expect, test } from 'vitest';
 import {
   buildNewInvoice,
+  buyerStateCode,
   effectiveUnit,
   emptyItem,
   loadEditState,
   recalcItems,
+  sellerStateCode,
+  useBuilder,
   validateBuilder,
   type BuilderItem,
 } from '../builderStore';
 import type { Client, Invoice } from '../../../api/types';
+import { docTitleFor } from '../../../pdf/logoUtil';
 
 function client(overrides: Partial<Client> = {}): Client {
   return {
@@ -17,6 +21,7 @@ function client(overrides: Partial<Client> = {}): Client {
     businessName: 'Acme',
     tradeName: '',
     gstin: '27ABCDE1234F1Z5',
+    supplyState: '',
     billingAddress: 'Mumbai',
     shippingAddress: '',
     mobile: '9876543210',
@@ -111,6 +116,7 @@ describe('buildNewInvoice', () => {
         poDate: '',
         vehicleNumber: 'MH01AB1234',
         copyType: 'Original for Recipient',
+        template: 'classic',
         billTo: bill,
         shipTo: ship,
         sameAsBillTo: false,
@@ -128,6 +134,7 @@ describe('buildNewInvoice', () => {
     expect(inv.items[0].unit).toBe('Nos');
     expect(inv.grandTotal).toBe(1180);
     expect(inv.status).toBe('issued');
+    expect(inv.template).toBe('classic');
     expect(inv.invoiceDate).toEqual(new Date(2026, 8, 21));
     expect(inv.poDate).toBeNull();
   });
@@ -143,6 +150,7 @@ describe('buildNewInvoice', () => {
         poDate: '',
         vehicleNumber: '',
         copyType: 'Original for Recipient',
+        template: 'classic',
         billTo: bill,
         shipTo: null,
         sameAsBillTo: true,
@@ -168,6 +176,7 @@ describe('buildNewInvoice', () => {
           poDate: '',
           vehicleNumber: '',
           copyType: 'Original for Recipient',
+        template: 'classic',
           billTo: null,
           shipTo: null,
           sameAsBillTo: true,
@@ -238,6 +247,7 @@ describe('loadEditState', () => {
       grandTotal: 118,
       amountInWords: '',
       status: 'issued',
+      template: 'modern',
       createdAt: null,
       updatedAt: null,
       cancelledAt: null,
@@ -263,5 +273,79 @@ describe('loadEditState', () => {
     const both = { ...inv, shipTo: { ...inv.billTo } };
     const loaded = loadEditState(both, [client()]);
     expect(loaded.sameAsBillTo).toBe(true);
+  });
+});
+
+describe('supply-state interstate chain (parity contract)', () => {
+  test('GSTIN codes win when present', () => {
+    expect(sellerStateCode('27ABCDE1234F1Z5', '')).toBe('27');
+    expect(buyerStateCode('07XYZAB1234C1Z2', '')).toBe('07');
+  });
+
+  test('supply_state fallback when GSTIN missing', () => {
+    expect(sellerStateCode('', '29')).toBe('29');
+    expect(buyerStateCode('', '07')).toBe('07');
+    expect(sellerStateCode('', '')).toBeNull();
+    expect(buyerStateCode('', '')).toBeNull();
+  });
+});
+
+describe('docTitleFor', () => {
+  test('no GSTIN → BILL OF SUPPLY', () => {
+    expect(docTitleFor({ gstin: '' })).toBe('BILL OF SUPPLY');
+    expect(docTitleFor({ gstin: '  ' })).toBe('BILL OF SUPPLY');
+    expect(docTitleFor({ gstin: '27ABCDE1234F1Z5' })).toBe('TAX INVOICE');
+  });
+});
+
+describe('exempt store mode', () => {
+  beforeEach(() => {
+    useBuilder.getState().reset();
+  });
+
+  test('bindCompanyGstin with exempt zeroes rates and locks interstate', () => {
+    const st = useBuilder.getState();
+    st.addItemFromProduct({
+      id: 'p1',
+      name: 'Widget',
+      hsnCode: '1001',
+      defaultUnit: 'Nos',
+      rate: 100,
+      gstRate: 18,
+    });
+    expect(useBuilder.getState().items[0].gstRate).toBe(18);
+    st.bindCompanyGstin('', '29', true);
+    const s = useBuilder.getState();
+    expect(s.isExempt).toBe(true);
+    expect(s.isInterstate).toBe(false);
+    expect(s.items[0].gstRate).toBe(0);
+    expect(s.totals.totalCGST).toBe(0);
+    expect(s.totals.grandTotal).toBe(100);
+  });
+
+  test('updateItem clamps GST to 0 in exempt mode', () => {
+    const st = useBuilder.getState();
+    st.bindCompanyGstin('', '29', true);
+    const key = useBuilder.getState().items[0].key;
+    st.updateItem(key, { gstRate: 18, rate: 200 });
+    expect(useBuilder.getState().items[0].gstRate).toBe(0);
+    expect(useBuilder.getState().items[0].rate).toBe(200);
+  });
+
+  test('setInterstate is a no-op in exempt mode', () => {
+    const st = useBuilder.getState();
+    st.bindCompanyGstin('', '29', true);
+    st.setInterstate(true);
+    expect(useBuilder.getState().isInterstate).toBe(false);
+  });
+
+  test('exempt interstate auto-detects from supply states', () => {
+    const st = useBuilder.getState();
+    st.bindCompanyGstin('', '29', false);
+    st.setBillTo(client({ gstin: '', supplyState: '07' }));
+    // interstateAuto was reset to true by bind (non-exempt) → auto ran
+    expect(useBuilder.getState().isInterstate).toBe(true);
+    st.setBillTo(client({ gstin: '', supplyState: '29' }));
+    expect(useBuilder.getState().isInterstate).toBe(false);
   });
 });

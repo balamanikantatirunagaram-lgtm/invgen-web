@@ -10,6 +10,7 @@ import {
   useProducts,
   useUpdateInvoice,
 } from '../../hooks/queries';
+import { useSession } from '../../stores/session';
 import { userMessage } from '../../lib/errors';
 import { COPY_TYPES, GST_SLABS, UNITS } from '../../lib/constants';
 import { fmtInr } from '../../lib/format';
@@ -169,6 +170,7 @@ function ItemRow({
   const removeItem = useBuilder((s) => s.removeItem);
   const selectProduct = useBuilder((s) => s.selectProduct);
   const isInterstate = useBuilder((s) => s.isInterstate);
+  const isExempt = useBuilder((s) => s.isExempt);
 
   const patch = (p: Partial<BuilderItem>) => updateItem(item.key, p);
 
@@ -255,7 +257,9 @@ function ItemRow({
           inputMode="decimal"
           list={`gst-slabs-${item.key}`}
           placeholder="GST %"
-          className={cellCls}
+          disabled={isExempt}
+          title={isExempt ? 'Bill of Supply — no GST charged' : undefined}
+          className={`${cellCls} disabled:opacity-60`}
           aria-label={`Row ${index + 1} GST percent`}
         />
         <datalist id={`gst-slabs-${item.key}`}>
@@ -322,12 +326,14 @@ export default function BuilderPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId]);
 
-  // Bind company GSTIN (interstate auto-detect) + default template + number
-  // suggestion (create mode only).
+  // Bind company GSTIN/supply-state (interstate auto-detect) + exempt mode
+  // + default template + number suggestion (create mode only).
+  const profile = useSession((st) => st.profile);
+  const isExempt = profile?.gstExempt === true && !profile?.gstVerified;
   useEffect(() => {
     if (!company || companyBound || !ownerId) return;
     const st = useBuilder.getState();
-    st.bindCompanyGstin(company.gstin);
+    st.bindCompanyGstin(company.gstin, company.supplyState, isExempt);
     if (!isEdit) {
       st.setTemplate(company.invoiceTemplate);
       const prefix = company.invoicePrefix === '' ? 'INV-' : company.invoicePrefix;
@@ -340,7 +346,7 @@ export default function BuilderPage() {
         });
     }
     setCompanyBound(true);
-  }, [company, companyBound, ownerId, isEdit]);
+  }, [company, companyBound, ownerId, isEdit, isExempt]);
 
   // Edit mode: load invoice + clients once both arrive.
   // Clearing editBound (e.g. via Reset) reloads the saved invoice.
@@ -349,10 +355,10 @@ export default function BuilderPage() {
     const inv = invoiceQuery.data;
     if (!inv) return;
     const st = useBuilder.getState();
-    st.loadEdit(loadEditState(inv, clients), company?.gstin ?? '');
-    st.setTemplate(company?.invoiceTemplate ?? 'classic');
+    st.loadEdit(loadEditState(inv, clients), company?.gstin ?? '', company?.supplyState ?? '', isExempt);
+    st.setTemplate(inv.template ?? company?.invoiceTemplate ?? 'classic');
     setEditBound(inv.invoiceId);
-  }, [isEdit, editBound, invoiceQuery.data, clientsQuery.isLoading, clients, company]);
+  }, [isEdit, editBound, invoiceQuery.data, clientsQuery.isLoading, clients, company, isExempt]);
 
   const cancelled = isEdit && s.editStatus === 'cancelled';
 
@@ -434,7 +440,7 @@ export default function BuilderPage() {
           <h1 className="text-3xl font-bold tracking-tight">
             {isEdit ? 'Edit Invoice' : 'New Invoice'}
           </h1>
-          <p className="text-ink-secondary mt-1 flex items-center gap-2">
+          <p className="text-ink-secondary mt-1 flex flex-wrap items-center gap-2">
             {isEdit ? (
               <>
                 <span className="font-mono font-semibold text-ink">{s.invoiceNumber}</span>
@@ -442,6 +448,11 @@ export default function BuilderPage() {
               </>
             ) : (
               <>Number suggestion: <span className="font-mono font-semibold text-ink">{s.invoiceNumber === '' ? '…' : s.invoiceNumber}</span> · final number assigned on save</>
+            )}
+            {s.isExempt && (
+              <span className="text-[11px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 rounded-full px-2.5 py-0.5">
+                Bill of Supply
+              </span>
             )}
           </p>
         </div>
@@ -530,6 +541,14 @@ export default function BuilderPage() {
             ) : (
               <>
                 <ClientPicker label="Bill To" value={s.billTo} clients={clients} onPick={s.setBillTo} />
+                {s.isExempt ? (
+                  <div className="rounded-xl bg-amber-50 border border-amber-200 p-3">
+                    <p className="text-sm font-semibold text-amber-900">Bill of Supply — no GST</p>
+                    <p className="text-xs text-amber-800 mt-1">
+                      Exempt accounts issue bills without tax. Add a GSTIN to unlock tax invoices.
+                    </p>
+                  </div>
+                ) : (
                 <div className="rounded-xl bg-surface-soft/60 border border-border-color p-3">
                   <label className="flex items-center gap-2.5 text-sm cursor-pointer">
                     <input
@@ -550,6 +569,7 @@ export default function BuilderPage() {
                     GSTINs, toggle to override
                   </p>
                 </div>
+                )}
                 <label className="flex items-center gap-2.5 text-sm cursor-pointer">
                   <input
                     type="checkbox"

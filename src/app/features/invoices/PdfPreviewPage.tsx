@@ -10,6 +10,7 @@ import {
   type InvoiceTemplate,
 } from '../../api/types';
 import { buildInvoicePdf } from '../../pdf/buildPdf';
+import { docTitleFor } from '../../pdf/logoUtil';
 import { downloadPdf, printPdf } from '../../pdf/print';
 import {
   Card,
@@ -41,7 +42,8 @@ export default function PdfPreviewPage() {
 
   const inv = invoiceQuery.data ?? null;
   const company = companyQuery.data ?? null;
-  const activeTemplate: InvoiceTemplate = template ?? company?.invoiceTemplate ?? 'classic';
+  // Per-invoice template wins (persisted at save); company default is fallback.
+  const activeTemplate: InvoiceTemplate = template ?? inv?.template ?? company?.invoiceTemplate ?? 'classic';
   // Stable stamps: polling refetches return new object identities — rebuild
   // the PDF only when content actually changes.
   const invStamp = inv ? `${inv.invoiceId}:${inv.updatedAt ?? ''}` : null;
@@ -54,7 +56,9 @@ export default function PdfPreviewPage() {
     let alive = true;
     setBuilding(true);
     setBuildError(null);
-    buildInvoicePdf(liveInv, liveCompany, activeTemplate)
+    buildInvoicePdf(liveInv, liveCompany, activeTemplate, {
+      docTitle: docTitleFor(liveCompany),
+    })
       .then((b) => {
         if (!alive) return;
         const blob = new Blob([b.slice()], { type: 'application/pdf' });

@@ -195,6 +195,7 @@ export interface Buildable extends Validatable {
   items: BuilderItem[];
   totals: InvoiceTotals;
   amountInWords: string;
+  template: InvoiceTemplate;
 }
 
 function partyFromClient(c: Client, addressOverride?: string) {
@@ -260,6 +261,7 @@ export function buildNewInvoice(
     grandTotal: s.totals.grandTotal,
     amountInWords: s.amountInWords,
     status: opts.status ?? 'issued',
+    template: s.template,
   };
 }
 
@@ -274,6 +276,7 @@ function snapshotAsClient(p: Invoice['billTo']): Client {
     businessName: p.businessName,
     tradeName: '',
     gstin: p.gstin,
+    supplyState: '',
     billingAddress: p.address,
     shippingAddress: p.address,
     mobile: p.mobile,
@@ -338,6 +341,10 @@ interface BuilderStore extends BuilderHeader {
   isInterstate: boolean;
   interstateAuto: boolean;
   companyGstin: string;
+  /** Fallback state code when the company has no GSTIN (exempt mode). */
+  companySupplyState: string;
+  /** Exempt (Bill of Supply) mode: GST forced 0, interstate hidden. */
+  isExempt: boolean;
   items: BuilderItem[];
   totals: InvoiceTotals;
   amountInWords: string;
@@ -350,13 +357,13 @@ interface BuilderStore extends BuilderHeader {
   setSameAsBillTo: (v: boolean) => void;
   setTemplate: (t: InvoiceTemplate) => void;
   setInterstate: (v: boolean, auto?: boolean) => void;
-  bindCompanyGstin: (g: string) => void;
+  bindCompanyGstin: (g: string, supplyState?: string, exempt?: boolean) => void;
   addItem: () => void;
   addItemFromProduct: (p: { id: string; name: string; hsnCode: string; defaultUnit: string; rate: number; gstRate: number }) => void;
   removeItem: (key: string) => void;
   updateItem: (key: string, patch: Partial<BuilderItem>) => void;
   selectProduct: (key: string, p: { id: string; name: string; hsnCode: string; defaultUnit: string; rate: number; gstRate: number }) => void;
-  loadEdit: (loaded: EditLoaded, companyGstin: string) => void;
+  loadEdit: (loaded: EditLoaded, companyGstin: string, companySupplyState?: string, exempt?: boolean) => void;
   reset: () => void;
 }
 
@@ -375,12 +382,29 @@ function applyRecalc(
   });
 }
 
-/** Auto-detect interstate from GSTIN state codes when both present. */
-function autoInterstate(companyGstin: string, billGstin: string): boolean | null {
-  const a = companyGstin.trim().toUpperCase();
-  const b = (billGstin ?? '').trim().toUpperCase();
-  if (a.length < 2 || b.length < 2) return null;
-  return detectInterstate(a, b);
+/**
+ * Seller state code: GSTIN first-2 else registered supply_state.
+ * Mirrors mobile parity contract (Phase A).
+ */
+export function sellerStateCode(companyGstin: string, supplyState: string): string | null {
+  const g = companyGstin.trim().toUpperCase();
+  if (g.length >= 2) return g.slice(0, 2);
+  const s = supplyState.trim().toUpperCase();
+  return s.length >= 2 ? s.slice(0, 2) : null;
+}
+
+/** Buyer state code: GSTIN first-2 else the buyer's supply_state. */
+export function buyerStateCode(billGstin: string, supplyState: string): string | null {
+  const g = (billGstin ?? '').trim().toUpperCase();
+  if (g.length >= 2) return g.slice(0, 2);
+  const s = (supplyState ?? '').trim().toUpperCase();
+  return s.length >= 2 ? s.slice(0, 2) : null;
+}
+
+/** Auto-detect interstate when both sides resolve to a state code. */
+function autoInterstate(seller: string | null, buyer: string | null): boolean | null {
+  if (!seller || !buyer) return null;
+  return detectInterstate(seller, buyer);
 }
 
 export const useBuilder = create<BuilderStore>((set) => {
@@ -398,6 +422,8 @@ export const useBuilder = create<BuilderStore>((set) => {
     isInterstate: false,
     interstateAuto: true,
     companyGstin: '',
+    companySupplyState: '',
+    isExempt: false,
     items: init.items,
     totals: init.totals,
     amountInWords: init.amountInWords,
@@ -409,8 +435,11 @@ export const useBuilder = create<BuilderStore>((set) => {
     setBillTo: (c) =>
       set((s) => {
         let isInterstate = s.isInterstate;
-        if (s.interstateAuto) {
-          const auto = autoInterstate(s.companyGstin, c?.gstin ?? '');
+        if (s.interstateAuto && !s.isExempt) {
+          const auto = autoInterstate(
+            sellerStateCode(s.companyGstin, s.companySupplyState),
+            buyerStateCode(c?.gstin ?? '', c?.supplyState ?? ''),
+          );
           if (auto !== null) isInterstate = auto;
         }
         const r = recalcItems(s.items, isInterstate);
@@ -423,23 +452,34 @@ export const useBuilder = create<BuilderStore>((set) => {
 
     setInterstate: (v, auto = false) =>
       set((s) => {
+        if (s.isExempt) return {};
         const r = recalcItems(s.items, v);
         return { isInterstate: v, interstateAuto: auto, items: r.items, totals: r.totals, amountInWords: r.amountInWords };
       }),
 
-    bindCompanyGstin: (g) =>
+    bindCompanyGstin: (g, supplyState = '', exempt = false) =>
       set((s) => {
-        let isInterstate = s.isInterstate;
-        if (s.interstateAuto) {
-          const auto = autoInterstate(g, s.billTo?.gstin ?? '');
-          if (auto !== null) isInterstate = auto;
-        }
-        const r = recalcItems(s.items, isInterstate);
-        return { companyGstin: g, isInterstate, items: r.items, totals: r.totals, amountInWords: r.amountInWords };
+        // Exempt companies have no GST to split: force intra + zero rates.
+        const items = exempt ? s.items.map((it) => ({ ...it, gstRate: 0 })) : s.items;
+        const isInterstate = false;
+        const r = recalcItems(items, false);
+        return {
+          companyGstin: g,
+          companySupplyState: supplyState,
+          isExempt: exempt,
+          isInterstate,
+          interstateAuto: !exempt,
+          items: r.items,
+          totals: r.totals,
+          amountInWords: r.amountInWords,
+        };
       }),
 
     addItem: () =>
-      applyRecalc(set, (s) => ({ items: [...s.items, emptyItem()], isInterstate: s.isInterstate })),
+      applyRecalc(set, (s) => ({
+        items: [...s.items, { ...emptyItem(), gstRate: s.isExempt ? 0 : 18 }],
+        isInterstate: s.isInterstate,
+      })),
 
     addItemFromProduct: (p) =>
       applyRecalc(set, (s) => ({
@@ -453,7 +493,7 @@ export const useBuilder = create<BuilderStore>((set) => {
             quantity: 1,
             unit: (UNITS as readonly string[]).includes(p.defaultUnit) ? p.defaultUnit : 'Nos',
             rate: p.rate,
-            gstRate: p.gstRate,
+            gstRate: s.isExempt ? 0 : p.gstRate,
           },
         ],
         isInterstate: s.isInterstate,
@@ -471,7 +511,12 @@ export const useBuilder = create<BuilderStore>((set) => {
 
     updateItem: (key, patch) =>
       applyRecalc(set, (s) => ({
-        items: s.items.map((e) => (e.key === key ? { ...e, ...patch } : e)),
+        // Exempt mode clamps any GST edit back to 0.
+        items: s.items.map((e) =>
+          e.key === key
+            ? { ...e, ...patch, gstRate: s.isExempt ? 0 : (patch.gstRate ?? e.gstRate) }
+            : e,
+        ),
         isInterstate: s.isInterstate,
       })),
 
@@ -486,15 +531,16 @@ export const useBuilder = create<BuilderStore>((set) => {
                 hsnCode: p.hsnCode,
                 unit: (UNITS as readonly string[]).includes(p.defaultUnit) ? p.defaultUnit : 'Nos',
                 rate: p.rate,
-                gstRate: p.gstRate,
+                gstRate: s.isExempt ? 0 : p.gstRate,
               }
             : e,
         ),
         isInterstate: s.isInterstate,
       })),
 
-    loadEdit: (loaded, companyGstin) => {
-      const r = recalcItems(loaded.items, loaded.isInterstate);
+    loadEdit: (loaded, companyGstin, companySupplyState = '', exempt = false) => {
+      const items = exempt ? loaded.items.map((it) => ({ ...it, gstRate: 0 })) : loaded.items;
+      const r = recalcItems(items, exempt ? false : loaded.isInterstate);
       set(() => ({
         invoiceNumber: loaded.header.invoiceNumber,
         invoiceDate: loaded.header.invoiceDate,
@@ -505,9 +551,11 @@ export const useBuilder = create<BuilderStore>((set) => {
         billTo: loaded.billTo,
         shipTo: loaded.shipTo,
         sameAsBillTo: loaded.sameAsBillTo,
-        isInterstate: loaded.isInterstate,
+        isInterstate: exempt ? false : loaded.isInterstate,
         interstateAuto: false,
         companyGstin,
+        companySupplyState,
+        isExempt: exempt,
         items: r.items,
         totals: r.totals,
         amountInWords: r.amountInWords,
@@ -531,6 +579,8 @@ export const useBuilder = create<BuilderStore>((set) => {
         isInterstate: false,
         interstateAuto: true,
         companyGstin: '',
+        companySupplyState: '',
+        isExempt: false,
         items: r.items,
         totals: r.totals,
         amountInWords: r.amountInWords,

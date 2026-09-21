@@ -11,6 +11,7 @@ import {
   productFromRow,
   templateFromId,
   userProfileFromRow,
+  userProfileToRow,
   type Invoice,
 } from '../types';
 import { AppError, isUniqueViolation, mapSupabase, userMessage } from '../../lib/errors';
@@ -48,8 +49,10 @@ describe('client mappers', () => {
       'c1',
     );
     expect(c.gstin).toBe('27ABCDE1234F1Z5');
-    const row = clientToRow({ ...c, businessName: 'Acme Pvt' });
+    expect(c.supplyState).toBe('');
+    const row = clientToRow({ ...c, businessName: 'Acme Pvt', supplyState: '07' });
     expect(row['business_name']).toBe('Acme Pvt');
+    expect(row['supply_state']).toBe('07');
     expect('id' in row).toBe(false);
   });
 });
@@ -94,6 +97,9 @@ describe('company mappers', () => {
     expect(c.invoiceTemplate).toBe('modern');
     expect(c.bankDetails.bankName).toBe('HDFC');
     expect(c.gstin).toBe('27ABCDE1234F1Z5');
+    expect(c.supplyState).toBe('');
+    const withState = companyFromRow({ supply_state: '27' }, 'u1');
+    expect(withState.supplyState).toBe('27');
     const { id: _id, updatedAt: _updatedAt, ...rowInput } = c;
     void _id;
     void _updatedAt;
@@ -106,8 +112,19 @@ describe('profile mappers', () => {
   test('gst booleans and null verifiedAt', () => {
     const p = userProfileFromRow({ email: 'a@b.com', gst_verified: true }, 'u1');
     expect(p.gstVerified).toBe(true);
+    expect(p.gstExempt).toBe(false);
     expect(p.verifiedAt).toBeNull();
     expect(p.gstin).toBe('');
+  });
+
+  test('exempt round-trip', () => {
+    const p = userProfileFromRow({ gst_verified: false, gst_exempt: true }, 'u1');
+    expect(p.gstExempt).toBe(true);
+    const { uid: _uid, ...rest } = p;
+    void _uid;
+    const row = userProfileToRow(rest);
+    expect(row['gst_exempt']).toBe(true);
+    expect(row['gst_verified']).toBe(false);
   });
 });
 
@@ -148,6 +165,7 @@ function sampleInvoice(overrides: Partial<Invoice> = {}): Invoice {
     grandTotal: 1180,
     amountInWords: 'ONE THOUSAND ONE HUNDRED EIGHTY RUPEES ONLY',
     status: 'issued',
+    template: 'classic',
     createdAt: null,
     updatedAt: null,
     cancelledAt: null,
@@ -170,6 +188,20 @@ describe('invoice mappers', () => {
     expect(back.grandTotal).toBe(1180);
     expect(back.totalTaxableValue).toBe(1000);
     expect(back.billTo.businessName).toBe('Acme Corp');
+    expect(back.template).toBe('classic');
+  });
+
+  test('template persists; unknown falls back to classic', () => {
+    const inv = sampleInvoice({ template: 'modern' });
+    const { invoiceId, createdAt, updatedAt, cancelledAt, ...rest } = inv;
+    void invoiceId;
+    void createdAt;
+    void updatedAt;
+    void cancelledAt;
+    const row = invoiceToRow(rest);
+    expect(row['template']).toBe('modern');
+    expect(invoiceFromRow({ ...row, id: 'i1' }).template).toBe('modern');
+    expect(invoiceFromRow({ id: 'i1', template: 'fancy' }).template).toBe('classic');
   });
 
   test('missing items array defaults to []', () => {

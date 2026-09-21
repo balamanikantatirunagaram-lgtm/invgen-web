@@ -24,6 +24,7 @@ import { INVOICE_STATUSES, type InvoiceStatus } from '../../lib/constants';
 import type { Invoice, InvoiceFilter } from '../../api/types';
 // NOTE: buildPdf (@react-pdf/renderer) is dynamic-imported in doPrint so the
 // heavy renderer stays out of the main bundle (see lazy PdfPreviewPage route).
+import { docTitleFor } from '../../pdf/logoUtil';
 import { printPdf } from '../../pdf/print';
 import {
   Card,
@@ -91,7 +92,9 @@ export default function LedgerPage() {
     setBusyPdf(inv.invoiceId);
     try {
       const { buildInvoicePdf } = await import('../../pdf/buildPdf');
-      const bytes = await buildInvoicePdf(inv, company, company.invoiceTemplate);
+      const bytes = await buildInvoicePdf(inv, company, inv.template ?? company.invoiceTemplate, {
+        docTitle: docTitleFor(company),
+      });
       await printPdf(bytes, `${inv.invoiceNumber}.pdf`);
     } catch (e) {
       toast(userMessage(e));

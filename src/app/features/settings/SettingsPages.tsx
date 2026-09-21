@@ -14,6 +14,7 @@ import {
   validateIfsc,
   validateMobile,
 } from '../../lib/validators';
+import { INDIAN_STATES, normalizeStateCode } from '../../lib/states';
 import { pickAndEncodeLogo } from '../../lib/logo';
 import { deleteAccountAndData } from '../../api/account';
 import {
@@ -234,6 +235,7 @@ function baseCompany(existing: CompanySettings | null | undefined): Omit<Company
     companyName: existing?.companyName ?? '',
     address: existing?.address ?? '',
     gstin: existing?.gstin ?? '',
+    supplyState: existing?.supplyState ?? '',
     mobile: existing?.mobile ?? '',
     email: existing?.email ?? '',
     bankDetails: existing?.bankDetails ?? {
@@ -275,6 +277,7 @@ function CompanyIdentityForm() {
   const [name, setName] = useState(c?.companyName ?? '');
   const [addr, setAddr] = useState(c?.address ?? '');
   const [gstin, setGstin] = useState(c?.gstin ?? '');
+  const [supplyState, setSupplyState] = useState(c?.supplyState ?? '');
   const [mob, setMob] = useState(c?.mobile ?? '');
   const [email, setEmail] = useState(c?.email ?? '');
   const [logo, setLogo] = useState(c?.logoBase64 ?? '');
@@ -301,8 +304,11 @@ function CompanyIdentityForm() {
     if (n) e.name = n;
     const a = requiredField(addr, 'Address');
     if (a) e.addr = a;
-    const g = validateGstin(gstin);
+    const g = validateGstin(gstin, gstin.trim() !== '' || supplyState.trim() === '');
     if (g) e.gstin = g;
+    if (gstin.trim() === '' && normalizeStateCode(supplyState) === '') {
+      e.supplyState = 'State is required when GSTIN is empty';
+    }
     const m = validateMobile(mob);
     if (m) e.mob = m;
     const em = validateEmail(email);
@@ -316,6 +322,7 @@ function CompanyIdentityForm() {
         companyName: name.trim(),
         address: addr.trim(),
         gstin: gstin.trim().toUpperCase(),
+        supplyState: supplyState.trim().toUpperCase(),
         mobile: mob.trim(),
         email: email.trim(),
         logoBase64: logo,
@@ -398,13 +405,34 @@ function CompanyIdentityForm() {
                   className={`${inputCls} uppercase font-mono`}
                 />
               </Field>
+              <Field
+                label="State"
+                required={gstin.trim() === ''}
+                error={errors.supplyState}
+                hint="Place of supply — required when GSTIN is empty"
+              >
+                <select
+                  value={supplyState}
+                  onChange={(e) => setSupplyState(e.target.value)}
+                  className={inputCls}
+                >
+                  <option value="">Select state…</option>
+                  {INDIAN_STATES.map((s) => (
+                    <option key={s.code} value={s.code}>
+                      {s.code} — {s.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-4">
               <Field label="Mobile" required error={errors.mob}>
                 <input value={mob} onChange={(e) => setMob(e.target.value)} inputMode="tel" className={inputCls} />
               </Field>
+              <Field label="Email" required error={errors.email}>
+                <input value={email} onChange={(e) => setEmail(e.target.value)} inputMode="email" className={inputCls} />
+              </Field>
             </div>
-            <Field label="Email" required error={errors.email}>
-              <input value={email} onChange={(e) => setEmail(e.target.value)} inputMode="email" className={inputCls} />
-            </Field>
           </Card>
 
           <div className="mt-4">

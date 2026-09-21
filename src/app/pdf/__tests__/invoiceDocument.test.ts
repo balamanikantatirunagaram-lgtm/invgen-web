@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { buildInvoicePdf } from '../buildPdf';
-import { logoDataUrl } from '../logoUtil';
+import { docTitleFor, logoDataUrl } from '../logoUtil';
 import type { CompanySettings, Invoice, InvoiceItem } from '../../api/types';
 import { INVOICE_TEMPLATES } from '../../api/types';
 
@@ -61,6 +61,7 @@ function invoice(nItems: number): Invoice {
     grandTotal: 1180 * nItems,
     amountInWords: 'TEST RUPEES ONLY',
     status: 'issued',
+    template: 'classic',
     createdAt: null,
     updatedAt: null,
     cancelledAt: null,
@@ -73,6 +74,7 @@ function company(): CompanySettings {
     companyName: 'Seller Pvt Ltd',
     address: 'Pune, Maharashtra',
     gstin: '27SELLER1234F1Z5',
+    supplyState: '',
     mobile: '9123456789',
     email: 'billing@seller.in',
     bankDetails: {
@@ -115,5 +117,14 @@ describe('buildInvoicePdf (golden)', () => {
     const inv = invoice(1);
     const bytes = await buildInvoicePdf({ ...inv, isInterstate: true }, company(), 'modern');
     expect(bytes.length).toBeGreaterThan(1000);
+  }, 30000);
+
+  test('bill of supply renders for exempt company', async () => {
+    const co = { ...company(), gstin: '' };
+    const bytes = await buildInvoicePdf(invoice(1), co, 'classic', {
+      docTitle: docTitleFor(co),
+    });
+    expect(bytes.length).toBeGreaterThan(1000);
+    expect(String.fromCharCode(...bytes.slice(0, 5))).toBe('%PDF-');
   }, 30000);
 }, 60000);

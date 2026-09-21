@@ -98,20 +98,30 @@ function rowStrings(inv: Invoice): string[][] {
 // Sections
 // ---------------------------------------------------------------------------
 
-function PageHeader({ inv, company, template }: { inv: Invoice; company: CompanySettings; template: InvoiceTemplate }) {
+function PageHeader({
+  inv,
+  company,
+  template,
+  docTitle,
+}: {
+  inv: Invoice;
+  company: CompanySettings;
+  template: InvoiceTemplate;
+  docTitle: string;
+}) {
   const badge = (
     <View style={styles.badge}>
       <Text style={styles.badgeText}>{inv.copyType}</Text>
     </View>
   );
-  const gstin = <Text style={styles.gstinLine}>GSTIN: {company.gstin}</Text>;
+  const gstin = <Text style={styles.gstinLine}>GSTIN: {company.gstin === '' ? '-' : company.gstin}</Text>;
 
   if (template === 'bold') {
     return (
       <View>
         <View style={{ backgroundColor: INK, paddingVertical: 10 }}>
           <Text style={{ fontSize: 26, color: PAPER, letterSpacing: 4, fontWeight: 'bold', textAlign: 'center' }}>
-            TAX INVOICE
+            {docTitle}
           </Text>
         </View>
         <View style={{ height: 4 }} />
@@ -129,10 +139,10 @@ function PageHeader({ inv, company, template }: { inv: Invoice; company: Company
       <View>
         <View style={{ borderBottomWidth: 2, borderBottomColor: INK, paddingBottom: 4, flexDirection: 'row', alignItems: 'flex-end' }}>
           <Text style={{ fontSize: 12, fontWeight: 'bold' }}>
-            {company.companyName === '' ? 'TAX INVOICE' : company.companyName}
+            {company.companyName === '' ? docTitle : company.companyName}
           </Text>
           <View style={{ flex: 1 }} />
-          <Text style={{ fontSize: 11, fontWeight: 'bold' }}>TAX INVOICE</Text>
+          <Text style={{ fontSize: 11, fontWeight: 'bold' }}>{docTitle}</Text>
         </View>
         <View style={{ height: 3 }} />
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -160,7 +170,7 @@ function PageHeader({ inv, company, template }: { inv: Invoice; company: Company
           textAlign: 'center',
         }}
       >
-        TAX INVOICE
+        {docTitle}
       </Text>
       <View style={{ borderBottomWidth: template === 'minimal' ? 0.5 : 1, borderBottomColor: INK, marginTop: 4 }} />
     </View>
@@ -452,17 +462,20 @@ export function InvoiceDocument({
   inv,
   company,
   template,
+  docTitle = 'TAX INVOICE',
 }: {
   inv: Invoice;
   company: CompanySettings;
   template: InvoiceTemplate;
+  /** Header title — 'TAX INVOICE' normally, 'BILL OF SUPPLY' when exempt. */
+  docTitle?: string;
 }) {
   const logoSrc = logoDataUrl(company.logoBase64);
   const today = fmtDate(new Date());
   return (
-    <Document title={`Tax Invoice ${inv.invoiceNumber}`}>
+    <Document title={`${docTitle} ${inv.invoiceNumber}`}>
       <Page size="A4" style={styles.page}>
-        <PageHeader inv={inv} company={company} template={template} />
+        <PageHeader inv={inv} company={company} template={template} docTitle={docTitle} />
         <View style={{ height: 8 }} />
         <IssuerBlock company={company} logoSrc={logoSrc} template={template} />
         <View style={{ height: 8 }} />

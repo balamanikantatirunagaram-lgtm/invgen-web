@@ -44,6 +44,7 @@ function inv(overrides: Partial<Invoice> & { invoiceId: string }): Invoice {
     grandTotal: 1180,
     amountInWords: '',
     status: 'issued',
+    template: 'classic',
     createdAt: null,
     updatedAt: null,
     cancelledAt: null,

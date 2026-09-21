@@ -37,7 +37,7 @@ function navClass({ isActive }: { isActive: boolean }) {
 /** Desktop SaaS shell: sidebar + topbar. Deliberately different from mobile UI. */
 export default function AppShell() {
   const [open, setOpen] = useState(false);
-  const { user } = useSession();
+  const { user, profile } = useSession();
   const navigate = useNavigate();
   useSubscribeTables();
 
@@ -132,6 +132,22 @@ export default function AppShell() {
             </Link>
           </div>
         </header>
+
+        {profile?.gstExempt === true && !profile.gstVerified && (
+          <div className="bg-amber-100 border-b border-amber-200">
+            <div className="px-4 sm:px-6 lg:px-8 py-2.5 max-w-6xl mx-auto flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+              <p className="text-amber-900">
+                <strong>Bill of Supply mode</strong> — you&apos;re issuing bills without GST.
+              </p>
+              <Link
+                to="/app/verify-gst"
+                className="font-bold text-amber-900 underline hover:text-ink"
+              >
+                Add GSTIN to unlock tax invoices →
+              </Link>
+            </div>
+          </div>
+        )}
 
         <main className="px-4 sm:px-6 lg:px-8 py-8 max-w-6xl mx-auto">
           <Outlet />

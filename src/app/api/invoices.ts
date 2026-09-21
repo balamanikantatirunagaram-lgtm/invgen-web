@@ -304,5 +304,6 @@ export async function duplicateInvoice(
     grandTotal: source.grandTotal,
     amountInWords: source.amountInWords,
     status: 'draft',
+    template: source.template,
   }));
 }

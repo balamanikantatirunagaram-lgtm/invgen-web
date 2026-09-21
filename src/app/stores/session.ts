@@ -9,6 +9,8 @@ export interface AppUser {
 
 export interface UserProfile {
   gstVerified: boolean;
+  /** Non-GST (Bill of Supply) mode — passes guards without verification. */
+  gstExempt: boolean;
   gstin: string | null;
 }
 

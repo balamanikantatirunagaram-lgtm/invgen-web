@@ -12,8 +12,14 @@ export async function buildInvoicePdf(
   inv: Invoice,
   company: CompanySettings,
   template: InvoiceTemplate,
+  opts: { docTitle?: string } = {},
 ): Promise<Uint8Array> {
-  const doc = createElement(InvoiceDocument, { inv, company, template }) as unknown as ReactElement<DocumentProps>;
+  const doc = createElement(InvoiceDocument, {
+    inv,
+    company,
+    template,
+    docTitle: opts.docTitle ?? 'TAX INVOICE',
+  }) as unknown as ReactElement<DocumentProps>;
   const instance = pdf(doc);
   try {
     const blob = (await instance.toBlob()) as Blob;
