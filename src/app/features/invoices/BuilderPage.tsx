@@ -1,0 +1,700 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Plus, Trash2 } from 'lucide-react';
+import {
+  useClients,
+  useCompany,
+  useCreateInvoice,
+  useInvoice,
+  useOwnerId,
+  useProducts,
+  useUpdateInvoice,
+} from '../../hooks/queries';
+import { userMessage } from '../../lib/errors';
+import { COPY_TYPES, GST_SLABS, UNITS } from '../../lib/constants';
+import { fmtInr } from '../../lib/format';
+import { validateGstRate } from '../../lib/validators';
+import { formatInvoiceNumber, INVOICE_TEMPLATES, TEMPLATE_META, type Client, type InvoiceTemplate } from '../../api/types';
+import { peekCounter } from '../../api/counters';
+import {
+  buildNewInvoice,
+  effectiveUnit,
+  loadEditState,
+  useBuilder,
+  validateBuilder,
+  type BuilderItem,
+} from './builderStore';
+import {
+  Card,
+  ConfirmDialog,
+  ErrorState,
+  Field,
+  LoadingState,
+  StatusChip,
+  inputCls,
+} from '../../components/ui';
+import { toast } from '../../components/toastBus';
+
+/** Display helper: transient NaN (cleared inputs) renders as —. */
+function money(v: number): string {
+  return Number.isFinite(v) ? fmtInr(v) : '—';
+}
+
+// ---------------------------------------------------------------------------
+// Searchable client picker
+// ---------------------------------------------------------------------------
+
+function ClientPicker({
+  label,
+  value,
+  clients,
+  onPick,
+}: {
+  label: string;
+  value: Client | null;
+  clients: Client[];
+  onPick: (c: Client | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+
+  if (value) {
+    return (
+      <div>
+        <p className="text-sm font-semibold mb-1.5">{label}</p>
+        <div className="rounded-xl border border-border-strong bg-surface-soft/50 p-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="font-bold truncate">{value.businessName}</p>
+              <p className="text-xs font-mono text-ink-secondary truncate">
+                {value.gstin === '' ? 'No GSTIN' : value.gstin}
+              </p>
+              {value.billingAddress !== '' && (
+                <p className="text-xs text-ink-secondary line-clamp-2 mt-0.5">{value.billingAddress}</p>
+              )}
+            </div>
+            <button
+              onClick={() => {
+                onPick(null);
+                setQ('');
+              }}
+              className="text-xs font-bold text-ink-secondary hover:text-ink shrink-0 px-2 py-1"
+            >
+              Change
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const needle = q.trim().toLowerCase();
+  const matches = (needle === '' ? clients : clients.filter((c) =>
+    `${c.businessName} ${c.gstin} ${c.mobile}`.toLowerCase().includes(needle),
+  )).slice(0, 8);
+
+  return (
+    <div className="relative">
+      <Field label={label} required>
+        <input
+          value={q}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          placeholder="Search name / GSTIN / mobile…"
+          className={inputCls}
+        />
+      </Field>
+      {open && (
+        <ul className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto bg-surface border border-border-strong rounded-xl shadow-xl py-1">
+          {matches.length === 0 ? (
+            <li className="px-4 py-3 text-sm text-ink-tertiary">
+              No matches. <Link to="/app/clients" className="underline font-semibold">Add client →</Link>
+            </li>
+          ) : (
+            matches.map((c) => (
+              <li key={c.id}>
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    onPick(c);
+                    setOpen(false);
+                    setQ('');
+                  }}
+                  className="w-full text-left px-4 py-2.5 hover:bg-surface-soft transition-colors"
+                >
+                  <p className="font-semibold text-sm truncate">{c.businessName}</p>
+                  <p className="text-xs text-ink-tertiary font-mono truncate">
+                    {c.gstin === '' ? 'No GSTIN' : c.gstin}
+                  </p>
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Item row (inline editable)
+// ---------------------------------------------------------------------------
+
+function numInput(v: string, fallback: number): number {
+  if (v.trim() === '') return NaN;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function ItemRow({
+  item,
+  index,
+  products,
+  deletable,
+}: {
+  item: BuilderItem;
+  index: number;
+  products: { id: string; name: string; hsnCode: string; defaultUnit: string; rate: number; gstRate: number }[];
+  deletable: boolean;
+}) {
+  const updateItem = useBuilder((s) => s.updateItem);
+  const removeItem = useBuilder((s) => s.removeItem);
+  const selectProduct = useBuilder((s) => s.selectProduct);
+  const isInterstate = useBuilder((s) => s.isInterstate);
+
+  const patch = (p: Partial<BuilderItem>) => updateItem(item.key, p);
+
+  return (
+    <tr className="border-b border-border-color last:border-0 align-top">
+      <td className="px-3 py-2.5 text-sm font-bold text-ink-tertiary w-8">{index + 1}</td>
+      <td className="px-3 py-2.5 min-w-[220px]">
+        <select
+          value={item.productId}
+          onChange={(e) => {
+            const p = products.find((x) => x.id === e.target.value);
+            if (p) selectProduct(item.key, p);
+            else patch({ productId: '' });
+          }}
+          className={`${inputCls} mb-1.5 text-sm py-2`}
+          aria-label={`Row ${index + 1} catalog product`}
+        >
+          <option value="">Manual entry…</option>
+          {products.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+        <input
+          value={item.name}
+          onChange={(e) => patch({ name: e.target.value })}
+          placeholder="Product / service name *"
+          className={`${inputCls} text-sm py-2`}
+          aria-label={`Row ${index + 1} name`}
+        />
+        <input
+          value={item.hsnCode}
+          onChange={(e) => patch({ hsnCode: e.target.value })}
+          placeholder="HSN"
+          inputMode="numeric"
+          className={`${inputCls} text-sm py-2 mt-1.5 font-mono`}
+          aria-label={`Row ${index + 1} HSN`}
+        />
+      </td>
+      <td className="px-3 py-2.5 w-24">
+        <input
+          value={Number.isFinite(item.quantity) ? String(item.quantity) : ''}
+          onChange={(e) => patch({ quantity: numInput(e.target.value, NaN) })}
+          inputMode="decimal"
+          placeholder="Qty"
+          className={`${inputCls} text-sm py-2`}
+          aria-label={`Row ${index + 1} quantity`}
+        />
+        <select
+          value={item.unit}
+          onChange={(e) => patch({ unit: e.target.value })}
+          className={`${inputCls} text-sm py-2 mt-1.5`}
+          aria-label={`Row ${index + 1} unit`}
+        >
+          {UNITS.map((u) => (
+            <option key={u} value={u}>{u}</option>
+          ))}
+        </select>
+        {item.unit === 'Custom' && (
+          <input
+            value={item.customUnit}
+            onChange={(e) => patch({ customUnit: e.target.value })}
+            placeholder="Custom unit"
+            className={`${inputCls} text-sm py-2 mt-1.5`}
+            aria-label={`Row ${index + 1} custom unit`}
+          />
+        )}
+      </td>
+      <td className="px-3 py-2.5 w-28">
+        <input
+          value={Number.isFinite(item.rate) ? String(item.rate) : ''}
+          onChange={(e) => patch({ rate: numInput(e.target.value, NaN) })}
+          inputMode="decimal"
+          placeholder="0.00"
+          className={`${inputCls} text-sm py-2`}
+          aria-label={`Row ${index + 1} rate`}
+        />
+      </td>
+      <td className="px-3 py-2.5 w-24">
+        <input
+          value={Number.isFinite(item.gstRate) ? String(item.gstRate) : ''}
+          onChange={(e) => patch({ gstRate: numInput(e.target.value, NaN) })}
+          inputMode="decimal"
+          list={`gst-slabs-${item.key}`}
+          placeholder="GST %"
+          className={`${inputCls} text-sm py-2`}
+          aria-label={`Row ${index + 1} GST percent`}
+        />
+        <datalist id={`gst-slabs-${item.key}`}>
+          {GST_SLABS.map((g) => (
+            <option key={g} value={g} />
+          ))}
+        </datalist>
+      </td>
+      <td className="px-3 py-2.5 text-sm text-right whitespace-nowrap">
+        <p className="font-semibold">{money(item.taxableValue)}</p>
+        <p className="text-xs text-ink-tertiary">
+          {isInterstate
+            ? `IGST ${item.igstRate}% · ${money(item.igstAmount)}`
+            : `CGST ${item.cgstRate}% · ${money(item.cgstAmount)} + SGST ${item.sgstRate}% · ${money(item.sgstAmount)}`}
+        </p>
+        <p className="font-bold mt-0.5">{money(item.itemTotal)}</p>
+        <p className="text-xs text-ink-tertiary">{effectiveUnit(item)} · HSN {item.hsnCode === '' ? '—' : item.hsnCode}</p>
+      </td>
+      <td className="px-3 py-2.5 w-10">
+        <button
+          onClick={() => removeItem(item.key)}
+          disabled={!deletable}
+          className="p-2 rounded-lg text-ink-tertiary hover:text-red-700 hover:bg-red-50 disabled:opacity-30"
+          title={deletable ? 'Remove row' : 'Keep at least one row'}
+          aria-label={`Remove row ${index + 1}`}
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
+
+export default function BuilderPage() {
+  const { id: editId } = useParams();
+  const isEdit = editId != null;
+  const navigate = useNavigate();
+  const ownerId = useOwnerId();
+
+  const s = useBuilder();
+  const clientsQuery = useClients();
+  const companyQuery = useCompany();
+  const invoiceQuery = useInvoice(isEdit ? editId : undefined);
+  const createMut = useCreateInvoice();
+  const updateMut = useUpdateInvoice();
+
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [editBound, setEditBound] = useState<string | null>(null);
+  const [companyBound, setCompanyBound] = useState(false);
+
+  const company = companyQuery.data;
+  const clients = useMemo(() => clientsQuery.data ?? [], [clientsQuery.data]);
+  const products = useProducts().data ?? [];
+
+  // Create mode: fresh form on mount.
+  useEffect(() => {
+    if (!isEdit) useBuilder.getState().reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId]);
+
+  // Bind company GSTIN (interstate auto-detect) + default template + number
+  // suggestion (create mode only).
+  useEffect(() => {
+    if (!company || companyBound || !ownerId) return;
+    const st = useBuilder.getState();
+    st.bindCompanyGstin(company.gstin);
+    if (!isEdit) {
+      st.setTemplate(company.invoiceTemplate);
+      const prefix = company.invoicePrefix === '' ? 'INV-' : company.invoicePrefix;
+      peekCounter(ownerId)
+        .then((seq) => {
+          useBuilder.getState().setHeader({ invoiceNumber: formatInvoiceNumber(prefix, seq + 1) });
+        })
+        .catch(() => {
+          // suggestion is best-effort; atomic save assigns the real number
+        });
+    }
+    setCompanyBound(true);
+  }, [company, companyBound, ownerId, isEdit]);
+
+  // Edit mode: load invoice + clients once both arrive.
+  // Clearing editBound (e.g. via Reset) reloads the saved invoice.
+  useEffect(() => {
+    if (!isEdit || editBound !== null || !invoiceQuery.data || clientsQuery.isLoading) return;
+    const inv = invoiceQuery.data;
+    if (!inv) return;
+    const st = useBuilder.getState();
+    st.loadEdit(loadEditState(inv, clients), company?.gstin ?? '');
+    st.setTemplate(company?.invoiceTemplate ?? 'classic');
+    setEditBound(inv.invoiceId);
+  }, [isEdit, editBound, invoiceQuery.data, clientsQuery.isLoading, clients, company]);
+
+  const cancelled = isEdit && s.editStatus === 'cancelled';
+
+  const doSave = async (preview: boolean) => {
+    if (saving || !ownerId) return;
+    if (cancelled) {
+      toast('Cancelled invoices cannot be saved.');
+      return;
+    }
+    setSaveError(null);
+    const err = validateBuilder(s, isEdit);
+    if (err) {
+      setSaveError(err);
+      return;
+    }
+    for (let i = 0; i < s.items.length; i++) {
+      const g = validateGstRate(s.items[i].gstRate);
+      if (g) {
+        setSaveError(`Row ${i + 1}: ${g}`);
+        return;
+      }
+    }
+    setSaving(true);
+    try {
+      let savedId: string;
+      if (!isEdit) {
+        const prefix = company?.invoicePrefix || 'INV-';
+        savedId = await createMut.mutateAsync({
+          prefix,
+          build: (number) => buildNewInvoice(useBuilder.getState(), ownerId, { numberOverride: number }),
+        });
+        toast('Invoice saved');
+      } else {
+        // Preserve existing status (mobile resets to issued; web keeps paid/draft).
+        const inv = buildNewInvoice(useBuilder.getState(), ownerId, { status: s.editStatus || 'issued' });
+        await updateMut.mutateAsync({ id: editId as string, invoice: inv });
+        savedId = editId as string;
+        toast('Invoice saved');
+      }
+      useBuilder.getState().reset();
+      navigate(preview ? `/app/invoices/${savedId}` : '/app/invoices');
+    } catch (e) {
+      setSaveError(userMessage(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const isDirty =
+    s.billTo !== null || s.items.some((i) => i.name.trim() !== '' || i.quantity !== 1 || i.rate !== 0);
+
+  const doReset = () => {
+    if (!isEdit && !isDirty) {
+      useBuilder.getState().reset();
+      setCompanyBound(false);
+      return;
+    }
+    setConfirmReset(true);
+  };
+
+  if (isEdit && invoiceQuery.isLoading) {
+    return <LoadingState message="Loading invoice…" />;
+  }
+  if (isEdit && !invoiceQuery.isLoading && !invoiceQuery.data) {
+    return (
+      <ErrorState
+        message="Invoice not found. It may have been deleted."
+        onRetry={() => navigate('/app/invoices')}
+      />
+    );
+  }
+
+  const t = s.totals;
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {isEdit ? 'Edit Invoice' : 'New Invoice'}
+          </h1>
+          <p className="text-ink-secondary mt-1 flex items-center gap-2">
+            {isEdit ? (
+              <>
+                <span className="font-mono font-semibold text-ink">{s.invoiceNumber}</span>
+                <StatusChip status={s.editStatus || 'issued'} />
+              </>
+            ) : (
+              <>Number suggestion: <span className="font-mono font-semibold text-ink">{s.invoiceNumber === '' ? '…' : s.invoiceNumber}</span> · final number assigned on save</>
+            )}
+          </p>
+        </div>
+      </div>
+
+      {cancelled && (
+        <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-medium text-red-800">
+          This invoice is CANCELLED. Editing and re-saving are disabled.
+        </div>
+      )}
+
+      {saveError && (
+        <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-medium text-red-800">
+          {saveError}
+        </div>
+      )}
+
+      <div className="grid xl:grid-cols-[340px_minmax(0,1fr)_300px] lg:grid-cols-[300px_minmax(0,1fr)] gap-4 items-start">
+        {/* Left: details + parties */}
+        <div className="space-y-4">
+          <Card className="p-5 space-y-4">
+            <h2 className="font-bold">Details</h2>
+            <Field label="Invoice Date" required>
+              <input
+                type="date"
+                value={s.invoiceDate}
+                onChange={(e) => s.setHeader({ invoiceDate: e.target.value })}
+                className={inputCls}
+              />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="PO Number">
+                <input
+                  value={s.poNumber}
+                  onChange={(e) => s.setHeader({ poNumber: e.target.value })}
+                  className={inputCls}
+                />
+              </Field>
+              <Field label="PO Date">
+                <input
+                  type="date"
+                  value={s.poDate}
+                  onChange={(e) => s.setHeader({ poDate: e.target.value })}
+                  className={inputCls}
+                />
+              </Field>
+            </div>
+            <Field label="Vehicle Number">
+              <input
+                value={s.vehicleNumber}
+                onChange={(e) => s.setHeader({ vehicleNumber: e.target.value.toUpperCase() })}
+                className={`${inputCls} uppercase font-mono`}
+                placeholder="MH01AB1234"
+              />
+            </Field>
+            <Field label="Copy Type">
+              <select
+                value={s.copyType}
+                onChange={(e) => s.setHeader({ copyType: e.target.value })}
+                className={inputCls}
+              >
+                {COPY_TYPES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="PDF Template">
+              <select
+                value={s.template}
+                onChange={(e) => s.setTemplate(e.target.value as InvoiceTemplate)}
+                className={inputCls}
+              >
+                {INVOICE_TEMPLATES.map((t) => (
+                  <option key={t} value={t}>
+                    {TEMPLATE_META[t].label} — {TEMPLATE_META[t].description}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </Card>
+
+          <Card className="p-5 space-y-4">
+            <h2 className="font-bold">Customer</h2>
+            {clientsQuery.isLoading ? (
+              <p className="text-sm text-ink-tertiary">Loading clients…</p>
+            ) : (
+              <>
+                <ClientPicker label="Bill To" value={s.billTo} clients={clients} onPick={s.setBillTo} />
+                <div className="rounded-xl bg-surface-soft/60 border border-border-color p-3">
+                  <label className="flex items-center gap-2.5 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={s.isInterstate}
+                      onChange={(e) => s.setInterstate(e.target.checked)}
+                      className="h-4 w-4 accent-black"
+                    />
+                    <span className="font-semibold">Inter-state supply (IGST)</span>
+                    {s.interstateAuto && (
+                      <span className="text-[11px] font-bold uppercase tracking-wider bg-surface border border-border-strong rounded-full px-2 py-0.5 text-ink-tertiary">
+                        Auto
+                      </span>
+                    )}
+                  </label>
+                  <p className="text-xs text-ink-tertiary mt-1.5">
+                    {s.isInterstate ? 'Inter-state → IGST' : 'Intra-state → CGST + SGST'} · auto-detected from
+                    GSTINs, toggle to override
+                  </p>
+                </div>
+                <label className="flex items-center gap-2.5 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={s.sameAsBillTo}
+                    onChange={(e) => s.setSameAsBillTo(e.target.checked)}
+                    className="h-4 w-4 accent-black"
+                  />
+                  <span className="font-medium">Ship to same as Bill to</span>
+                </label>
+                {!s.sameAsBillTo && (
+                  <ClientPicker label="Ship To" value={s.shipTo} clients={clients} onPick={s.setShipTo} />
+                )}
+              </>
+            )}
+          </Card>
+        </div>
+
+        {/* Center: items */}
+        <Card className="overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border-color">
+            <h2 className="font-bold">Items ({s.items.length})</h2>
+            <button
+              onClick={() => s.addItem()}
+              className="flex items-center gap-1.5 text-sm font-bold px-3.5 py-2 rounded-xl bg-ink text-surface hover:bg-ink-secondary transition-colors"
+            >
+              <Plus className="h-4 w-4" /> Add row
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px]">
+              <thead>
+                <tr className="border-b border-border-color bg-surface-soft/60 text-left">
+                  {['#', 'Product', 'Qty / Unit', 'Rate', 'GST %', 'Tax / Total', ''].map((h) => (
+                    <th key={h} className="px-3 py-2.5 text-xs font-bold uppercase tracking-wider text-ink-tertiary">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {s.items.map((it, i) => (
+                  <ItemRow
+                    key={it.key}
+                    item={it}
+                    index={i}
+                    products={products}
+                    deletable={s.items.length > 1}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
+        {/* Right: sticky totals */}
+        <div className="lg:col-span-2 xl:col-span-1">
+          <div className="xl:sticky xl:top-24 space-y-4">
+            <Card className="p-5">
+              <h2 className="font-bold mb-4">Summary</h2>
+              <dl className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <dt className="text-ink-secondary">Taxable value</dt>
+                  <dd className="font-semibold">{money(t.totalTaxableValue)}</dd>
+                </div>
+                {s.isInterstate ? (
+                  <div className="flex justify-between">
+                    <dt className="text-ink-secondary">IGST</dt>
+                    <dd className="font-semibold">{money(t.totalIGST)}</dd>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex justify-between">
+                      <dt className="text-ink-secondary">CGST</dt>
+                      <dd className="font-semibold">{money(t.totalCGST)}</dd>
+                    </div>
+                    <div className="flex justify-between">
+                      <dt className="text-ink-secondary">SGST</dt>
+                      <dd className="font-semibold">{money(t.totalSGST)}</dd>
+                    </div>
+                  </>
+                )}
+                <div className="flex justify-between">
+                  <dt className="text-ink-secondary">Round off</dt>
+                  <dd className="font-semibold">
+                    {Number.isFinite(t.roundOff) ? (t.roundOff >= 0 ? '+' : '') + t.roundOff.toFixed(2) : '—'}
+                  </dd>
+                </div>
+                <div className="border-t border-border-color pt-3 flex justify-between items-baseline">
+                  <dt className="font-bold">Grand total</dt>
+                  <dd className="text-2xl font-bold">{money(t.grandTotal)}</dd>
+                </div>
+              </dl>
+              <p className="text-xs text-ink-secondary mt-3 leading-relaxed break-words">
+                {s.amountInWords === '' ? '—' : s.amountInWords}
+              </p>
+            </Card>
+
+            <div className="grid grid-cols-2 xl:grid-cols-1 gap-2">
+              <button
+                onClick={() => doSave(false)}
+                disabled={saving || cancelled}
+                className="py-3.5 rounded-xl bg-ink text-surface font-bold hover:bg-ink-secondary transition-colors disabled:opacity-60"
+              >
+                {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Save Invoice'}
+              </button>
+              <button
+                onClick={() => doSave(true)}
+                disabled={saving || cancelled}
+                className="py-3.5 rounded-xl border border-border-strong font-bold hover:bg-surface transition-colors disabled:opacity-60 bg-surface"
+              >
+                {saving ? 'Saving…' : 'Save & Preview PDF'}
+              </button>
+            </div>
+            <button
+              onClick={doReset}
+              className="w-full text-sm font-semibold text-ink-tertiary hover:text-ink py-1"
+            >
+              Reset form
+            </button>
+            <Link to="/app/invoices" className="block text-center text-sm font-semibold text-ink-secondary hover:text-ink">
+              ← Back to ledger
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {confirmReset && (
+        <ConfirmDialog
+          title="Reset invoice?"
+          message={
+            isEdit
+              ? 'Unsaved changes will be discarded and the saved invoice reloaded.'
+              : 'Entered customer, items and details will be cleared.'
+          }
+          confirmLabel="Reset"
+          onConfirm={() => {
+            if (isEdit) {
+              // Reload the saved invoice via the load effect.
+              setEditBound(null);
+            } else {
+              useBuilder.getState().reset();
+              setCompanyBound(false);
+            }
+            setSaveError(null);
+            setConfirmReset(false);
+          }}
+          onCancel={() => setConfirmReset(false)}
+        />
+      )}
+    </div>
+  );
+}

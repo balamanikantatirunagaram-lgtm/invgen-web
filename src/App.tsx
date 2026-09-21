@@ -3,6 +3,38 @@ import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Calculator, CloudOff, Lock, CheckCircle2, IndianRupee, ArrowRight, Download, Menu, X, FileText, Check } from 'lucide-react';
 import PrivacyPolicy from './PrivacyPolicy';
 import TermsOfService from './TermsOfService';
+import RequireAuth from './app/routes/RequireAuth';
+import RequireVerified from './app/routes/RequireVerified';
+import AppShell from './app/routes/AppShell';
+import LoginPage from './app/features/auth/LoginPage';
+import VerifyGstPage from './app/features/auth/VerifyGstPage';
+import DashboardPage from './app/features/dashboard/DashboardPage';
+import BuilderPage from './app/features/invoices/BuilderPage';
+import LedgerPage from './app/features/invoices/LedgerPage';
+
+// Lazy: @react-pdf/renderer is heavy — split it out of the main bundle.
+const PdfPreviewPage = React.lazy(() => import('./app/features/invoices/PdfPreviewPage'));
+
+function PdfPreviewSuspense() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="bg-surface border border-border-color rounded-2xl p-12 text-center">
+          <p className="text-ink-secondary font-medium">Loading PDF viewer…</p>
+        </div>
+      }
+    >
+      <PdfPreviewPage />
+    </React.Suspense>
+  );
+}
+import ClientsPage from './app/features/clients/ClientsPage';
+import ProductsPage from './app/features/products/ProductsPage';
+import SettingsHubPage, {
+  BankSettingsPage,
+  CompanySettingsPage,
+  InvoicingSettingsPage,
+} from './app/features/settings/SettingsPages';
 
 function App() {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
@@ -30,9 +62,10 @@ function App() {
               <Link to="/#how-it-works" className="text-ink hover:text-ink-secondary font-medium transition-colors">How it Works</Link>
               <Link to="/#templates" className="text-ink hover:text-ink-secondary font-medium transition-colors">Templates</Link>
               <Link to="/#pricing" className="text-ink hover:text-ink-secondary font-medium transition-colors">Pricing</Link>
-              <a href="https://app.invgen.com" className="bg-ink text-surface px-6 py-2.5 rounded-xl font-semibold hover:bg-ink-secondary transition-all shadow-sm">
-                Open Web App
-              </a>
+              <Link to="/app/login" className="text-ink hover:text-ink-secondary font-medium transition-colors">Login</Link>
+              <Link to="/app/login" className="bg-ink text-surface px-6 py-2.5 rounded-xl font-semibold hover:bg-ink-secondary transition-all shadow-sm">
+                Get Started
+              </Link>
             </div>
 
             {/* Mobile menu button */}
@@ -54,9 +87,10 @@ function App() {
             <Link to="/#how-it-works" onClick={() => setIsMenuOpen(false)} className="block text-ink font-medium">How it Works</Link>
             <Link to="/#templates" onClick={() => setIsMenuOpen(false)} className="block text-ink font-medium">Templates</Link>
             <Link to="/#pricing" onClick={() => setIsMenuOpen(false)} className="block text-ink font-medium">Pricing</Link>
-            <a href="https://app.invgen.com" className="block w-full text-center bg-ink text-surface px-5 py-3 rounded-xl font-medium">
-              Open Web App
-            </a>
+            <Link to="/app/login" onClick={() => setIsMenuOpen(false)} className="block text-ink font-medium">Login</Link>
+            <Link to="/app/login" onClick={() => setIsMenuOpen(false)} className="block w-full text-center bg-ink text-surface px-5 py-3 rounded-xl font-medium">
+              Get Started
+            </Link>
           </div>
         )}
       </nav>
@@ -65,6 +99,28 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsOfService />} />
+
+        {/* Web app (same Supabase backend as mobile) */}
+        <Route path="/app/login" element={<LoginPage />} />
+        <Route path="/app/verify-gst" element={<VerifyGstPage />} />
+        <Route element={<RequireAuth />}>
+          <Route element={<RequireVerified />}>
+            <Route element={<AppShell />}>
+              <Route path="/app" element={<DashboardPage />} />
+              <Route path="/app/dashboard" element={<DashboardPage />} />
+              <Route path="/app/invoices/new" element={<BuilderPage />} />
+              <Route path="/app/invoices/:id/edit" element={<BuilderPage />} />
+              <Route path="/app/invoices" element={<LedgerPage />} />
+              <Route path="/app/invoices/:id" element={<PdfPreviewSuspense />} />
+              <Route path="/app/clients" element={<ClientsPage />} />
+              <Route path="/app/products" element={<ProductsPage />} />
+              <Route path="/app/settings" element={<SettingsHubPage />} />
+              <Route path="/app/settings/company" element={<CompanySettingsPage />} />
+              <Route path="/app/settings/bank" element={<BankSettingsPage />} />
+              <Route path="/app/settings/invoicing" element={<InvoicingSettingsPage />} />
+            </Route>
+          </Route>
+        </Route>
       </Routes>
 
       {/* Footer */}
@@ -81,7 +137,7 @@ function App() {
             <div>
               <h3 className="font-semibold text-ink mb-6 uppercase tracking-wider text-sm">Product</h3>
               <ul className="space-y-3">
-                <li><a href="https://app.invgen.com" className="text-ink-secondary hover:text-ink transition-colors">Web App</a></li>
+                <li><Link to="/app/login" className="text-ink-secondary hover:text-ink transition-colors">Web App</Link></li>
                 <li><a href="#download" className="text-ink-secondary hover:text-ink transition-colors">Android App</a></li>
                 <li><a href="#download" className="text-ink-secondary hover:text-ink transition-colors">iOS App</a></li>
                 <li><a href="#download" className="text-ink-secondary hover:text-ink transition-colors">Desktop App</a></li>
@@ -131,9 +187,9 @@ function Home() {
               Generate 100% compliant tax invoices in seconds. Auto-calculates CGST, SGST, IGST, and accurately formats amounts in Crores and Lakhs.
             </p>
             <div className="mt-12 flex flex-col sm:flex-row justify-center items-center gap-4">
-              <a href="https://app.invgen.com" className="w-full sm:w-auto px-8 py-4 text-lg font-semibold rounded-xl text-surface bg-ink hover:bg-ink-secondary flex items-center justify-center transition-all shadow-md">
+              <Link to="/app/login" className="w-full sm:w-auto px-8 py-4 text-lg font-semibold rounded-xl text-surface bg-ink hover:bg-ink-secondary flex items-center justify-center transition-all shadow-md">
                 Create Free Invoice <ArrowRight className="ml-2 h-5 w-5" />
-              </a>
+              </Link>
               <a href="#download" className="w-full sm:w-auto px-8 py-4 border border-border-strong text-lg font-semibold rounded-xl text-ink bg-surface hover:bg-surface-soft flex items-center justify-center transition-all">
                 <Download className="mr-2 h-5 w-5" /> Download App
               </a>
@@ -281,9 +337,9 @@ function Home() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl font-bold tracking-tight mb-6">Ready to simplify your billing?</h2>
           <p className="text-ink-secondary text-xl mb-10">Join businesses across India generating beautiful, compliant GST invoices effortlessly.</p>
-          <a href="https://app.invgen.com" className="inline-flex items-center px-8 py-4 font-bold rounded-xl text-surface bg-ink hover:bg-ink-secondary shadow-md transition-all text-lg">
+          <Link to="/app/login" className="inline-flex items-center px-8 py-4 font-bold rounded-xl text-surface bg-ink hover:bg-ink-secondary shadow-md transition-all text-lg">
             Get Started for Free
-          </a>
+          </Link>
         </div>
       </section>
     </>

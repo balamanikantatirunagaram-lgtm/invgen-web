@@ -1,32 +1,60 @@
-# React + TypeScript + Vite
+# InvGen Web — Marketing Site + GST Invoice Web App
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React 19 + TypeScript + Vite + Tailwind v4 + React Router 7.
 
-Currently, two official plugins are available:
+- **Marketing site** (`/`, `/privacy-policy`, `/terms`): landing page with
+  Get Started / Login entry points.
+- **Web app** (`/app/*`): full GST invoicing workspace — same features as the
+  Flutter mobile app (`INVGEN-APP`), different (desktop SaaS) UI, **same
+  Supabase database + auth**.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Quick start
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev          # http://localhost:5173
+npm test             # Vitest (83 tests)
+npm run build        # tsc -b && vite build
+npm run lint         # oxlint
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Backend setup (same Supabase project as mobile)
+
+1. Copy `.env.example` to `.env.local` and set `VITE_SUPABASE_URL` /
+   `VITE_SUPABASE_ANON_KEY` (never commit `.env.local`).
+2. Apply the mobile app's migrations (`../INVGEN-APP/supabase/migrations/`
+   `0001_init.sql`, `0002_counter_rpc.sql`, `0003_realtime.sql`) — schema,
+   RLS, `next_invoice_seq` RPC and realtime publication are shared.
+3. Supabase Dashboard → Auth → Google provider ON (same Web Client ID as
+   mobile) + redirect URL `<site>/app/dashboard`.
+4. Deploy the GST verification proxy (keeps the Appyflow `key_secret`
+   server-side):
+   ```bash
+   supabase secrets set APPYFLOW_KEY=<key_secret>
+   supabase functions deploy verify-gst   # source: ./supabase/functions/verify-gst
+   ```
+   Local dev fallback: `VITE_APPYFLOW_KEY` (exposes the key in the bundle —
+   dev only).
+
+## App routes
+
+`/app/login` → `/app/verify-gst` (one-time GSTIN check) →
+`/app/dashboard`, `/app/invoices/new`, `/app/invoices/:id/edit`,
+`/app/invoices`, `/app/invoices/:id` (PDF), `/app/clients`,
+`/app/products`, `/app/settings*`.
+
+## Architecture notes
+
+- `src/app/lib/` — single-source GST math (`gst.ts`), Indian amount words,
+  validators, constants, formatting. UI and PDF both call it; formulas are
+  never duplicated.
+- `src/app/api/` — thin Supabase wrappers mirroring the mobile
+  repositories (atomic `createInvoiceAtomic` with 23505 retries, draft-only
+  delete, append-only cancel audit).
+- `src/app/hooks/queries.ts` — React Query hooks + realtime invalidation
+  with 15s poll fallback.
+- `src/app/pdf/` — 4 `@react-pdf/renderer` templates (classic, modern,
+  minimal, bold). The renderer is code-split and loads on demand.
+- GST rules: intra-state `CGST=SGST=rate/2`, inter-state `IGST=full`,
+  `grandTotal=round(exact)`, auto-detected from GSTIN state codes with
+  manual override.
