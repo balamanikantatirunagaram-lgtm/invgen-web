@@ -526,11 +526,133 @@ export function applyInvoiceFilter(
 }
 
 // ---------------------------------------------------------------------------
+// Quotation (`quotations`, PK uuid, UNIQUE(owner_id, quotation_number))
+// ---------------------------------------------------------------------------
+
+export const QUOTATION_STATUSES = ['draft', 'sent', 'accepted', 'converted', 'expired'] as const;
+export type QuotationStatus = (typeof QUOTATION_STATUSES)[number];
+
+export interface Quotation {
+  quotationId: string;
+  ownerId: string;
+  quotationNumber: string;
+  quotationDate: Date;
+  validUntil: Date | null;
+  billTo: InvoiceParty;
+  shipTo: InvoiceParty;
+  items: InvoiceItem[];
+  isInterstate: boolean;
+  subTotal: number;
+  totalTaxableValue: number;
+  totalCGST: number;
+  totalSGST: number;
+  totalIGST: number;
+  roundOff: number;
+  grandTotal: number;
+  amountInWords: string;
+  status: QuotationStatus;
+  convertedInvoiceId: string | null;
+  template: InvoiceTemplate;
+  createdAt: Date | null;
+  updatedAt: Date | null;
+}
+
+export function quotationFromRow(j: Row): Quotation {
+  const rawItems = j['items'];
+  const list: Row[] = Array.isArray(rawItems) ? rawItems.map(rowMap) : [];
+  const status = rowString(j['status']);
+  return {
+    quotationId: rowString(j['id']),
+    ownerId: rowString(j['owner_id']),
+    quotationNumber: rowString(j['quotation_number']),
+    quotationDate: rowDateTimeOrNow(j['quotation_date']),
+    validUntil: rowDateTime(j['valid_until']),
+    billTo: partyFromRow(rowMap(j['bill_to'])),
+    shipTo: partyFromRow(rowMap(j['ship_to'])),
+    items: list.map(itemFromRow),
+    isInterstate: rowBool(j['is_interstate']),
+    subTotal: rowDouble(j['sub_total']),
+    totalTaxableValue: rowDouble(j['total_taxable']),
+    totalCGST: rowDouble(j['total_cgst']),
+    totalSGST: rowDouble(j['total_sgst']),
+    totalIGST: rowDouble(j['total_igst']),
+    roundOff: rowDouble(j['round_off']),
+    grandTotal: rowDouble(j['grand_total']),
+    amountInWords: rowString(j['amount_in_words']),
+    status: (QUOTATION_STATUSES as readonly string[]).includes(status) ? (status as QuotationStatus) : 'draft',
+    convertedInvoiceId: rowString(j['converted_invoice_id']) || null,
+    template: templateFromId(rowString(j['template']) || undefined),
+    createdAt: rowDateTime(j['created_at']),
+    updatedAt: rowDateTime(j['updated_at']),
+  };
+}
+
+export function quotationToRow(q: Omit<Quotation, 'quotationId' | 'createdAt' | 'updatedAt'>): Row {
+  return {
+    owner_id: q.ownerId,
+    quotation_number: q.quotationNumber,
+    quotation_date: q.quotationDate.toISOString(),
+    valid_until: isoOrNull(q.validUntil),
+    bill_to: partyToRow(q.billTo),
+    ship_to: partyToRow(q.shipTo),
+    items: q.items.map(itemToRow),
+    is_interstate: q.isInterstate,
+    sub_total: q.subTotal,
+    total_taxable: q.totalTaxableValue,
+    total_cgst: q.totalCGST,
+    total_sgst: q.totalSGST,
+    total_igst: q.totalIGST,
+    round_off: q.roundOff,
+    grand_total: q.grandTotal,
+    amount_in_words: q.amountInWords,
+    status: q.status,
+    converted_invoice_id: q.convertedInvoiceId,
+    template: q.template,
+  };
+}
+
+export type QuotationFilter = InvoiceFilter;
+
+export function applyQuotationFilter(
+  list: Quotation[],
+  filter: QuotationFilter,
+  limit: number,
+): Quotation[] {
+  let out = list;
+  if (filter.from) {
+    const from = filter.from;
+    out = out.filter((q) => q.quotationDate.getTime() >= from.getTime());
+  }
+  if (filter.to) {
+    const to = filter.to;
+    out = out.filter((q) => q.quotationDate.getTime() <= to.getTime());
+  }
+  if (filter.status) {
+    out = out.filter((q) => q.status === filter.status);
+  }
+  const needle = (filter.query ?? '').trim().toLowerCase();
+  if (needle !== '') {
+    out = out.filter((q) =>
+      `${q.billTo.businessName} ${q.billTo.gstin} ${q.quotationNumber}`
+        .toLowerCase()
+        .includes(needle),
+    );
+  }
+  return out.slice(0, limit);
+}
+
+// ---------------------------------------------------------------------------
 // Invoice numbering (mirrors CounterRepository.format)
 // ---------------------------------------------------------------------------
 
 /** Format a sequence number, e.g. prefix "INV-25-26-" seq 7 → "INV-25-26-0007". */
 export function formatInvoiceNumber(prefix: string, seq: number): string {
   const p = prefix === '' ? 'INV-' : prefix;
+  return `${p}${String(seq).padStart(4, '0')}`;
+}
+
+/** Format a quotation sequence — e.g. prefix "QUO-" seq 7 → "QUO-0007". */
+export function formatQuotationNumber(prefix: string, seq: number): string {
+  const p = prefix === '' ? 'QUO-' : prefix;
   return `${p}${String(seq).padStart(4, '0')}`;
 }

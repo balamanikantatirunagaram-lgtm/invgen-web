@@ -44,12 +44,24 @@ import {
   updateInvoice,
   type NewInvoice,
 } from '../api/invoices';
+import {
+  convertQuotationToInvoice,
+  createQuotationAtomic,
+  deleteQuotation,
+  fetchQuotationById,
+  fetchQuotations,
+  setQuotationStatus,
+  updateQuotation,
+  type NewQuotation,
+} from '../api/quotations';
 import type {
   Client,
   CompanySettings,
   Invoice,
   InvoiceFilter,
   Product,
+  Quotation,
+  QuotationFilter,
   UserProfile,
 } from '../api/types';
 
@@ -75,6 +87,7 @@ const TABLES = [
   'products',
   'invoices',
   'invoice_events',
+  'quotations',
   'counters',
 ] as const;
 
@@ -376,5 +389,114 @@ export function useDuplicateInvoice(): UseMutationResult<
     mutationFn: ({ prefix, source }) =>
       duplicateInvoice(ownerId as string, prefix, source),
     onSuccess: () => invalidateInvoices(queryClient, ownerId),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Quotations
+// ---------------------------------------------------------------------------
+
+export function useQuotations(
+  filter: QuotationFilter = {},
+  limit = 20,
+): UseQueryResult<Quotation[]> {
+  const ownerId = useOwnerId();
+  const { from, to, query, status } = filter;
+  return useQuery({
+    queryKey: [
+      'app',
+      ownerId,
+      'quotations',
+      from?.toISOString() ?? null,
+      to?.toISOString() ?? null,
+      query ?? '',
+      status ?? '',
+      limit,
+    ],
+    queryFn: () => fetchQuotations(ownerId as string, filter, limit),
+    enabled: enabled(ownerId),
+    refetchInterval: POLL_MS,
+  });
+}
+
+export function useQuotation(id: string | undefined): UseQueryResult<Quotation | null> {
+  const ownerId = useOwnerId();
+  return useQuery({
+    queryKey: ['app', ownerId, 'quotations', id],
+    queryFn: () => fetchQuotationById(id as string),
+    enabled: enabled(ownerId) && id != null,
+  });
+}
+
+function invalidateQuotations(
+  queryClient: ReturnType<typeof useQueryClient>,
+  ownerId: string | null,
+) {
+  void queryClient.invalidateQueries({ queryKey: ['app', ownerId, 'quotations'] });
+}
+
+export function useCreateQuotation(): UseMutationResult<
+  string,
+  Error,
+  { prefix: string; build: (number: string) => NewQuotation }
+> {
+  const queryClient = useQueryClient();
+  const ownerId = useOwnerId();
+  return useMutation({
+    mutationFn: ({ prefix, build }) =>
+      createQuotationAtomic(ownerId as string, prefix, build),
+    onSuccess: () => invalidateQuotations(queryClient, ownerId),
+  });
+}
+
+export function useUpdateQuotation(): UseMutationResult<
+  void,
+  Error,
+  { id: string; quotation: NewQuotation }
+> {
+  const queryClient = useQueryClient();
+  const ownerId = useOwnerId();
+  return useMutation({
+    mutationFn: ({ id, quotation }) => updateQuotation(id, quotation),
+    onSuccess: () => invalidateQuotations(queryClient, ownerId),
+  });
+}
+
+export function useDeleteQuotation(): UseMutationResult<void, Error, string> {
+  const queryClient = useQueryClient();
+  const ownerId = useOwnerId();
+  return useMutation({
+    mutationFn: (id) => deleteQuotation(id),
+    onSuccess: () => invalidateQuotations(queryClient, ownerId),
+  });
+}
+
+export function useSetQuotationStatus(): UseMutationResult<
+  void,
+  Error,
+  { id: string; status: string }
+> {
+  const queryClient = useQueryClient();
+  const ownerId = useOwnerId();
+  return useMutation({
+    mutationFn: ({ id, status }) => setQuotationStatus(id, status as never),
+    onSuccess: () => invalidateQuotations(queryClient, ownerId),
+  });
+}
+
+export function useConvertQuotation(): UseMutationResult<
+  string,
+  Error,
+  { quotation: Quotation; invoicePrefix: string }
+> {
+  const queryClient = useQueryClient();
+  const ownerId = useOwnerId();
+  return useMutation({
+    mutationFn: ({ quotation, invoicePrefix }) =>
+      convertQuotationToInvoice(ownerId as string, quotation, invoicePrefix),
+    onSuccess: () => {
+      invalidateQuotations(queryClient, ownerId);
+      invalidateInvoices(queryClient, ownerId);
+    },
   });
 }

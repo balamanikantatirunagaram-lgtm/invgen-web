@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   FilePlus2,
   ReceiptText,
+  FileText,
   Users,
   Package,
   Settings,
@@ -20,6 +21,7 @@ const NAV = [
   { to: '/app/dashboard', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/app/invoices/new', label: 'New Invoice', icon: FilePlus2, end: true },
   { to: '/app/invoices', label: 'Invoices', icon: ReceiptText, end: true },
+  { to: '/app/quotations', label: 'Quotations', icon: FileText, end: true },
   { to: '/app/clients', label: 'Clients', icon: Users, end: true },
   { to: '/app/products', label: 'Products', icon: Package, end: true },
   // Settings stays prefix-active so it highlights on /app/settings/* children.

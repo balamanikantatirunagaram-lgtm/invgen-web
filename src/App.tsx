@@ -13,9 +13,12 @@ import WelcomeWizard from './app/features/onboarding/WelcomeWizard';
 import DashboardPage from './app/features/dashboard/DashboardPage';
 import BuilderPage from './app/features/invoices/BuilderPage';
 import LedgerPage from './app/features/invoices/LedgerPage';
+import QuotationsPage from './app/features/quotations/QuotationsPage';
+import QuotationBuilder from './app/features/quotations/QuotationBuilder';
 
 // Lazy: @react-pdf/renderer is heavy — split it out of the main bundle.
 const PdfPreviewPage = React.lazy(() => import('./app/features/invoices/PdfPreviewPage'));
+const QuotationPdfPreview = React.lazy(() => import('./app/features/quotations/QuotationPdfPreview'));
 
 function PdfPreviewSuspense() {
   return (
@@ -27,6 +30,20 @@ function PdfPreviewSuspense() {
       }
     >
       <PdfPreviewPage />
+    </React.Suspense>
+  );
+}
+
+function QuotationPdfSuspense() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="bg-surface border border-border-color rounded-2xl p-12 text-center">
+          <p className="text-ink-secondary font-medium">Loading PDF viewer…</p>
+        </div>
+      }
+    >
+      <QuotationPdfPreview />
     </React.Suspense>
   );
 }
@@ -121,6 +138,10 @@ function App() {
                 <Route path="/app/invoices/:id/edit" element={<BuilderPage />} />
                 <Route path="/app/invoices" element={<LedgerPage />} />
                 <Route path="/app/invoices/:id" element={<PdfPreviewSuspense />} />
+                <Route path="/app/quotations" element={<QuotationsPage />} />
+                <Route path="/app/quotations/new" element={<QuotationBuilder />} />
+                <Route path="/app/quotations/:id/edit" element={<QuotationBuilder />} />
+                <Route path="/app/quotations/:id" element={<QuotationPdfSuspense />} />
                 <Route path="/app/clients" element={<ClientsPage />} />
                 <Route path="/app/products" element={<ProductsPage />} />
                 <Route path="/app/settings" element={<SettingsHubPage />} />
