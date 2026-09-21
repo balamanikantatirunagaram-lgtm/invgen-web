@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import {
   Bell,
+  Check,
   Building2,
   ChevronLeft,
   ChevronRight,
@@ -11,7 +12,7 @@ import {
   ReceiptText,
   Users,
 } from 'lucide-react';
-import { useCompany, useInvoices } from '../../hooks/queries';
+import { useClients, useCompany, useInvoices, useProducts } from '../../hooks/queries';
 import { useSession } from '../../stores/session';
 import { userMessage } from '../../lib/errors';
 import { fmtDate, fmtInr } from '../../lib/format';
@@ -71,8 +72,21 @@ export default function DashboardPage() {
       ? company.companyName
       : (user?.displayName || user?.email || 'there');
   const pendingCount = all.filter((i) => i.status === 'issued' || i.status === 'draft').length;
-  const profileIncomplete =
-    !company || company.companyName.trim() === '' || company.gstin.trim() === '';
+
+  // --- Setup checklist (Phase B) — replaces single banner ---
+  const clientsQuery = useClients();
+  const productsQuery = useProducts();
+  const clients = clientsQuery.data ?? [];
+  const products = productsQuery.data ?? [];
+  const companyDone =
+    !!company &&
+    company.companyName.trim() !== '' &&
+    (company.gstin.trim() !== '' || company.supplyState.trim() !== '');
+  const clientDone = clients.length > 0;
+  const productDone = products.length > 0;
+  const invoiceDone = all.length > 0;
+  const allDone = companyDone && clientDone && productDone && invoiceDone;
+  const showChecklist = !allDone;
 
   const currentMonth = monthKeyOf(new Date());
   const canGoNext = !isAfterMonth(shiftMonth(month, 1), currentMonth);
@@ -263,21 +277,43 @@ export default function DashboardPage() {
             </div>
           </Card>
 
-          {profileIncomplete && (
+          {showChecklist && (
             <Card className="p-5 bg-amber-50 border-amber-200">
-              <div className="flex items-start gap-3">
-                <Building2 className="h-6 w-6 text-amber-700 shrink-0" />
-                <div className="flex-1">
-                  <p className="font-bold">Finish company setup</p>
-                  <p className="text-sm text-ink-secondary">
-                    Add company name + GSTIN so invoices and PDFs are complete.
-                  </p>
-                </div>
+              <h3 className="font-bold mb-3 flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-amber-700" /> Complete your setup
+              </h3>
+              <ul className="space-y-2">
+                {[
+                  { label: 'Company profile', done: companyDone, to: '/app/settings/company' },
+                  { label: 'Add a client', done: clientDone, to: '/app/clients' },
+                  { label: 'Add a product', done: productDone, to: '/app/products' },
+                  { label: 'Create first invoice', done: invoiceDone, to: '/app/invoices/new' },
+                ].map((item) => (
+                  <li key={item.label} className="flex items-center justify-between">
+                    <span className="flex items-center gap-2 text-sm">
+                      <span
+                        className={`h-5 w-5 rounded-full flex items-center justify-center border-2 shrink-0 ${
+                          item.done ? 'bg-success text-surface border-success' : 'bg-surface border-border-strong text-ink-tertiary'
+                        }`}
+                      >
+                        {item.done ? <Check className="h-3 w-3" /> : null}
+                      </span>
+                      <span className={item.done ? 'text-ink-secondary line-through' : 'font-medium'}>{item.label}</span>
+                    </span>
+                    {!item.done && (
+                      <Link to={item.to} className="text-xs font-bold text-amber-800 hover:underline">
+                        Add →
+                      </Link>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-4 flex gap-2">
                 <Link
-                  to="/app/settings"
-                  className="text-sm font-bold text-amber-800 hover:underline shrink-0"
+                  to="/app/welcome"
+                  className="text-sm font-bold text-amber-800 hover:underline"
                 >
-                  Setup
+                  Open setup guide →
                 </Link>
               </div>
             </Card>

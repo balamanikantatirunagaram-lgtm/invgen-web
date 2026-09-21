@@ -69,6 +69,7 @@ export default function VerifyGstPage() {
     setError(null);
     try {
       // 1. Profile row with verification evidence (clears any exempt flag).
+      const existingProfileForConfirm = await fetchProfile(user.uid).catch(() => null);
       await saveProfile(user.uid, {
         email: user.email,
         displayName: user.displayName || gstDisplayName(result),
@@ -78,6 +79,7 @@ export default function VerifyGstPage() {
         address: result.address,
         gstVerified: true,
         gstExempt: false,
+        onboardedAt: existingProfileForConfirm?.onboardedAt ?? null,
         verifiedAt: new Date(),
         verificationStatus: result.status,
       });
@@ -130,6 +132,7 @@ export default function VerifyGstPage() {
             gstVerified: p.gstVerified,
             gstExempt: p.gstExempt,
             gstin: p.gstin,
+            onboardedAt: p.onboardedAt,
           });
         }
         return;
@@ -143,6 +146,7 @@ export default function VerifyGstPage() {
         gstVerified: cur?.gstVerified ?? false,
         gstExempt: cur?.gstExempt ?? true,
         gstin: fallbackGstin,
+        onboardedAt: cur?.onboardedAt ?? null,
       });
     }
   };
@@ -168,6 +172,7 @@ export default function VerifyGstPage() {
         address: exAddr.trim(),
         gstVerified: false,
         gstExempt: true,
+        onboardedAt: null,
         verifiedAt: null,
         verificationStatus: 'exempt',
       });

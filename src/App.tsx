@@ -5,9 +5,11 @@ import PrivacyPolicy from './PrivacyPolicy';
 import TermsOfService from './TermsOfService';
 import RequireAuth from './app/routes/RequireAuth';
 import RequireVerified from './app/routes/RequireVerified';
+import RequireOnboarded from './app/routes/RequireOnboarded';
 import AppShell from './app/routes/AppShell';
 import LoginPage from './app/features/auth/LoginPage';
 import VerifyGstPage from './app/features/auth/VerifyGstPage';
+import WelcomeWizard from './app/features/onboarding/WelcomeWizard';
 import DashboardPage from './app/features/dashboard/DashboardPage';
 import BuilderPage from './app/features/invoices/BuilderPage';
 import LedgerPage from './app/features/invoices/LedgerPage';
@@ -110,19 +112,22 @@ function App() {
         <Route path="/app/verify-gst" element={<VerifyGstPage />} />
         <Route element={<RequireAuth />}>
           <Route element={<RequireVerified />}>
-            <Route element={<AppShell />}>
-              <Route path="/app" element={<DashboardPage />} />
-              <Route path="/app/dashboard" element={<DashboardPage />} />
-              <Route path="/app/invoices/new" element={<BuilderPage />} />
-              <Route path="/app/invoices/:id/edit" element={<BuilderPage />} />
-              <Route path="/app/invoices" element={<LedgerPage />} />
-              <Route path="/app/invoices/:id" element={<PdfPreviewSuspense />} />
-              <Route path="/app/clients" element={<ClientsPage />} />
-              <Route path="/app/products" element={<ProductsPage />} />
-              <Route path="/app/settings" element={<SettingsHubPage />} />
-              <Route path="/app/settings/company" element={<CompanySettingsPage />} />
-              <Route path="/app/settings/bank" element={<BankSettingsPage />} />
-              <Route path="/app/settings/invoicing" element={<InvoicingSettingsPage />} />
+            <Route path="/app/welcome" element={<WelcomeWizard />} />
+            <Route element={<RequireOnboarded />}>
+              <Route element={<AppShell />}>
+                <Route path="/app" element={<DashboardPage />} />
+                <Route path="/app/dashboard" element={<DashboardPage />} />
+                <Route path="/app/invoices/new" element={<BuilderPage />} />
+                <Route path="/app/invoices/:id/edit" element={<BuilderPage />} />
+                <Route path="/app/invoices" element={<LedgerPage />} />
+                <Route path="/app/invoices/:id" element={<PdfPreviewSuspense />} />
+                <Route path="/app/clients" element={<ClientsPage />} />
+                <Route path="/app/products" element={<ProductsPage />} />
+                <Route path="/app/settings" element={<SettingsHubPage />} />
+                <Route path="/app/settings/company" element={<CompanySettingsPage />} />
+                <Route path="/app/settings/bank" element={<BankSettingsPage />} />
+                <Route path="/app/settings/invoicing" element={<InvoicingSettingsPage />} />
+              </Route>
             </Route>
           </Route>
         </Route>

@@ -30,7 +30,7 @@ export default function RequireAuth() {
       const meta = (s.user.user_metadata ?? {}) as Record<string, string>;
       const { data: row } = await supabase
         .from('profiles')
-        .select('gst_verified, gst_exempt, gstin')
+        .select('gst_verified, gst_exempt, gstin, onboarded_at')
         .eq('id', s.user.id)
         .maybeSingle();
       setSession(
@@ -45,6 +45,7 @@ export default function RequireAuth() {
               gstVerified: Boolean(row.gst_verified),
               gstExempt: Boolean(row.gst_exempt),
               gstin: row.gstin ?? null,
+              onboardedAt: row.onboarded_at ? new Date(row.onboarded_at as string) : null,
             }
           : null,
       );

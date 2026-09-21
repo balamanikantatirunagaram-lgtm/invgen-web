@@ -12,6 +12,7 @@ export interface UserProfile {
   /** Non-GST (Bill of Supply) mode — passes guards without verification. */
   gstExempt: boolean;
   gstin: string | null;
+  onboardedAt: Date | null;
 }
 
 interface SessionState {

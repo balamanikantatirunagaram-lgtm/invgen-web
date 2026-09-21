@@ -53,6 +53,8 @@ export interface UserProfile {
   gstVerified: boolean;
   /** Non-GST (Bill of Supply) mode — passes guards without verification. */
   gstExempt: boolean;
+  /** Wizard completion (Phase B). Null = not yet onboarded. */
+  onboardedAt: Date | null;
   verifiedAt: Date | null;
   verificationStatus: string;
 }
@@ -68,6 +70,7 @@ export function userProfileFromRow(j: Row, uid: string): UserProfile {
     address: rowString(j['address']),
     gstVerified: rowBool(j['gst_verified']),
     gstExempt: rowBool(j['gst_exempt']),
+    onboardedAt: rowDateTime(j['onboarded_at']),
     verifiedAt: rowDateTime(j['verified_at']),
     verificationStatus: rowString(j['verification_status']),
   };
@@ -83,6 +86,7 @@ export function userProfileToRow(p: Omit<UserProfile, 'uid'>): Row {
     address: p.address,
     gst_verified: p.gstVerified,
     gst_exempt: p.gstExempt,
+    onboarded_at: p.onboardedAt?.toISOString() ?? null,
     verified_at: p.verifiedAt?.toISOString() ?? (p.gstVerified ? new Date().toISOString() : null),
     verification_status: p.verificationStatus,
   };
