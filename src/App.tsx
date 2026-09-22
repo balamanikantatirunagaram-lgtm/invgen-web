@@ -349,21 +349,21 @@ function Home() {
                 <li className="flex items-center"><Check className="h-5 w-5 text-ink mr-3" /> PDF Export</li>
                 <li className="flex items-center"><Check className="h-5 w-5 text-ink mr-3" /> Offline Mode</li>
               </ul>
-              <a href="#" className="block w-full py-4 text-center rounded-xl border border-border-strong font-semibold hover:bg-surface-soft transition-colors">Current Plan</a>
+              <Link to="/app/login" className="block w-full py-4 text-center rounded-xl border border-border-strong font-semibold hover:bg-surface-soft transition-colors">Get Started</Link>
             </div>
             
             <div className="bg-ink text-surface rounded-3xl p-10 shadow-xl flex flex-col relative overflow-hidden">
               <div className="absolute top-0 right-0 bg-surface text-ink text-xs font-bold px-4 py-1.5 rounded-bl-xl uppercase tracking-wider">Most Popular</div>
               <h3 className="text-2xl font-bold mb-2">Pro</h3>
               <p className="text-ink-tertiary mb-6">For growing businesses with higher volume.</p>
-              <div className="text-4xl font-bold mb-8">₹499 <span className="text-lg text-ink-tertiary font-normal">/month</span></div>
+              <div className="text-3xl font-bold mb-8 text-surface/90">Coming Soon</div>
               <ul className="space-y-4 mb-10 flex-1">
                 <li className="flex items-center"><Check className="h-5 w-5 text-surface mr-3" /> Unlimited invoices</li>
                 <li className="flex items-center"><Check className="h-5 w-5 text-surface mr-3" /> All Premium Templates</li>
                 <li className="flex items-center"><Check className="h-5 w-5 text-surface mr-3" /> Custom Logo Uploads</li>
                 <li className="flex items-center"><Check className="h-5 w-5 text-surface mr-3" /> Priority Support</li>
               </ul>
-              <a href="#" className="block w-full py-4 text-center rounded-xl bg-surface text-ink font-semibold hover:bg-surface-soft transition-colors">Upgrade to Pro</a>
+              <Link to="/app/login" className="block w-full py-4 text-center rounded-xl bg-surface text-ink font-semibold hover:bg-surface-soft transition-colors">Join Waitlist</Link>
             </div>
           </div>
         </div>
