@@ -1,6 +1,6 @@
 
 import { useSearchParams } from 'react-router-dom';
-import { PDFViewer } from '@react-pdf/renderer';
+import { usePDF } from '@react-pdf/renderer';
 import { InvoiceDocument } from '../../pdf/invoiceDocument';
 import { useTemplates } from '../../hooks/useTemplates';
 
@@ -40,9 +40,12 @@ export default function TemplatePreviewPage() {
 
   return (
     <div className="w-screen h-screen">
-      <PDFViewer style={{ width: '100%', height: '100%', border: 'none' }}>
-        <InvoiceDocument inv={dummyInv} company={dummyCompany} templateDef={templateDef} />
-      </PDFViewer>
+      {(() => {
+        const [instance] = usePDF({ document: <InvoiceDocument inv={dummyInv} company={dummyCompany} templateDef={templateDef} /> });
+        if (instance.loading) return <div className="p-10 flex items-center justify-center">Generating PDF preview...</div>;
+        if (instance.error) return <div className="p-10 text-red-500">Error generating PDF: {instance.error}</div>;
+        return <iframe src={instance.url || ""} style={{ width: '100%', height: '100%', border: 'none' }} />;
+      })()}
     </div>
   );
 }
