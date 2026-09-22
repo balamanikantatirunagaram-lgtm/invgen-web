@@ -35,6 +35,6 @@ export function useTemplates() {
       return [...OFFLINE_TEMPLATES, ...onlineTemplates];
     },
     staleTime: 1000 * 15, // 5 minutes
-    initialData: OFFLINE_TEMPLATES
+    placeholderData: OFFLINE_TEMPLATES
   });
 }
