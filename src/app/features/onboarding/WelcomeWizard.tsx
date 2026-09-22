@@ -409,7 +409,7 @@ export default function WelcomeWizard() {
                       <option value="">State</option>
                       {INDIAN_STATES.map((s) => (
                         <option key={s.code} value={s.code}>
-                          {s.code}
+                          {s.code} — {s.name}
                         </option>
                       ))}
                     </select>
