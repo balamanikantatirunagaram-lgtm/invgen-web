@@ -22,7 +22,7 @@ import {
 // Invoice templates
 // ---------------------------------------------------------------------------
 
-export type BaseLayout = 'classic' | 'modern' | 'minimal' | 'bold' | 'custom_html';
+export type BaseLayout = 'classic' | 'modern' | 'minimal' | 'bold' | 'custom_html' | 'agency';
 
 export interface DynamicTemplate {
   id: string;
@@ -357,6 +357,7 @@ export interface Invoice {
   totalTaxableValue: number;
   totalCGST: number;
   totalSGST: number;
+  totalDiscount?: number;
   totalIGST: number;
   roundOff: number;
   grandTotal: number;

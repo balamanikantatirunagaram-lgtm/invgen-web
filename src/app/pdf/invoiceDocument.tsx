@@ -475,6 +475,162 @@ export function InvoiceDocument({
   const logoSrc = logoDataUrl(company.logoBase64);
   const today = fmtDate(new Date());
 
+
+  if (templateDef.base_layout === 'agency') {
+    const m = (val: any) => Number(val).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+    
+    return (
+      <Document title={`${docTitle} ${inv.invoiceNumber}`}>
+        <Page size="A4" style={{ backgroundColor: '#ffffff', padding: 40, position: 'relative' }}>
+          {/* Background decorative circles */}
+          <View style={{ position: 'absolute', top: -30, right: -15, width: 95, height: 95, borderRadius: 50, backgroundColor: '#eef2ff' }} />
+          <View style={{ position: 'absolute', top: -20, right: 0, width: 65, height: 65, borderRadius: 50, backgroundColor: '#667eea', opacity: 0.9 }} />
+
+          {/* Header */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', zIndex: 1, marginBottom: 40 }}>
+            <View>
+              {/* Logo / Brand Name */}
+              {logoSrc ? (
+                <Image src={logoSrc} style={{ height: 40, width: 'auto', marginBottom: 8 }} />
+              ) : (
+                <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#0f172a', letterSpacing: -1 }}>{company.companyName}</Text>
+              )}
+              <Text style={{ fontSize: 11, color: '#64748b' }}>Invoices made simple.</Text>
+            </View>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={{ fontSize: 9, fontWeight: 'bold', letterSpacing: 1, color: '#526585', marginBottom: 12 }}>SIMPLE • FAST • PROFESSIONAL</Text>
+              <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#0f172a', letterSpacing: -1, marginBottom: 16 }}>INVOICE</Text>
+              <View style={{ flexDirection: 'row', gap: 15 }}>
+                <View style={{ gap: 4 }}>
+                  <Text style={{ fontSize: 10, color: '#334155' }}>Invoice No.</Text>
+                  <Text style={{ fontSize: 10, color: '#334155' }}>Issue Date</Text>
+                </View>
+                <View style={{ gap: 4, alignItems: 'flex-end' }}>
+                  <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#111827' }}>{inv.invoiceNumber}</Text>
+                  <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#111827' }}>{today}</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {/* Billing */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 30 }}>
+            <View style={{ flex: 1, paddingRight: 20 }}>
+              <Text style={{ fontSize: 9, fontWeight: 'bold', letterSpacing: 1.5, color: '#526585', marginBottom: 8 }}>FROM</Text>
+              <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827', marginBottom: 4 }}>{company.companyName}</Text>
+              {company.address ? <Text style={{ fontSize: 10, color: '#334155', lineHeight: 1.4 }}>{company.address}</Text> : null}
+              {company.mobile ? <Text style={{ fontSize: 10, color: '#334155', lineHeight: 1.4 }}>{company.mobile}</Text> : null}
+              {company.email ? <Text style={{ fontSize: 10, color: '#334155', lineHeight: 1.4 }}>{company.email}</Text> : null}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 9, fontWeight: 'bold', letterSpacing: 1.5, color: '#526585', marginBottom: 8 }}>BILL TO</Text>
+              <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827', marginBottom: 4 }}>{inv.billTo?.businessName || inv.shipTo?.businessName || 'Client'}</Text>
+              <Text style={{ fontSize: 10, color: '#334155', lineHeight: 1.4 }}>{inv.billTo?.address || inv.shipTo?.address || ''}</Text>
+              <Text style={{ fontSize: 10, color: '#334155', lineHeight: 1.4 }}>{inv.billTo?.mobile || inv.shipTo?.mobile || ''}</Text>
+            </View>
+          </View>
+
+          {/* Items */}
+          <View style={{ borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 8, overflow: 'hidden', marginBottom: 25 }}>
+            <View style={{ flexDirection: 'row', backgroundColor: '#f1f4f9', borderBottomWidth: 1, borderBottomColor: '#e2e8f0', padding: 10 }}>
+              <Text style={{ width: '8%', fontSize: 9, fontWeight: 'bold', color: '#172033', letterSpacing: 1 }}>#</Text>
+              <Text style={{ flex: 1, fontSize: 9, fontWeight: 'bold', color: '#172033', letterSpacing: 1 }}>DESCRIPTION</Text>
+              <Text style={{ width: '12%', textAlign: 'center', fontSize: 9, fontWeight: 'bold', color: '#172033', letterSpacing: 1 }}>QTY</Text>
+              <Text style={{ width: '18%', textAlign: 'right', fontSize: 9, fontWeight: 'bold', color: '#172033', letterSpacing: 1 }}>RATE</Text>
+              <Text style={{ width: '18%', textAlign: 'right', fontSize: 9, fontWeight: 'bold', color: '#172033', letterSpacing: 1 }}>AMOUNT</Text>
+            </View>
+            {(inv.items || []).map((it, i) => (
+              <View key={i} style={{ flexDirection: 'row', padding: 10, borderBottomWidth: i === (inv.items?.length || 0) - 1 ? 0 : 1, borderBottomColor: '#e2e8f0' }}>
+                <Text style={{ width: '8%', fontSize: 9, color: '#1e293b' }}>{i + 1}</Text>
+                <Text style={{ flex: 1, fontSize: 9, color: '#1e293b' }}>{it.name || 'Item'}</Text>
+                <Text style={{ width: '12%', textAlign: 'center', fontSize: 9, color: '#1e293b' }}>{it.quantity}</Text>
+                <Text style={{ width: '18%', textAlign: 'right', fontSize: 9, color: '#1e293b' }}>{m(it.rate)}</Text>
+                <Text style={{ width: '18%', textAlign: 'right', fontSize: 9, color: '#1e293b' }}>{m(it.itemTotal)}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Summary */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 30 }}>
+            <View style={{ width: '55%', backgroundColor: '#f4f6fb', padding: 15, borderRadius: 8, borderLeftWidth: 3, borderLeftColor: '#4f7cff' }}>
+              <Text style={{ fontSize: 11, fontWeight: 'bold', marginBottom: 4 }}>Thank you for choosing us!</Text>
+              <Text style={{ fontSize: 9, color: '#64748b' }}>We appreciate your business and support.</Text>
+            </View>
+            <View style={{ width: '40%' }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
+                <Text style={{ fontSize: 10, color: '#334155' }}>Subtotal</Text>
+                <Text style={{ fontSize: 10, color: '#334155' }}>Rs. {m(inv.subTotal || 0)}</Text>
+              </View>
+              {(inv.totalDiscount || 0) > 0 && (
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
+                  <Text style={{ fontSize: 10, color: '#334155' }}>Discount</Text>
+                  <Text style={{ fontSize: 10, color: '#334155' }}>-Rs. {m(inv.totalDiscount)}</Text>
+                </View>
+              )}
+              {((inv.totalCGST || 0) + (inv.totalSGST || 0) + (inv.totalIGST || 0)) > 0 && (
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
+                  <Text style={{ fontSize: 10, color: '#334155' }}>Tax</Text>
+                  <Text style={{ fontSize: 10, color: '#334155' }}>Rs. {m((inv.totalCGST || 0) + (inv.totalSGST || 0) + (inv.totalIGST || 0))}</Text>
+                </View>
+              )}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 14, backgroundColor: '#edf2ff', borderRadius: 8, marginTop: 6, alignItems: 'center' }}>
+                <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827' }}>Grand Total</Text>
+                <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827' }}>Rs. {m(inv.grandTotal || 0)}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Payment & Notes */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 40 }}>
+            <View style={{ width: '48%' }}>
+              <Text style={{ fontSize: 9, fontWeight: 'bold', letterSpacing: 1.5, color: '#526585', marginBottom: 8 }}>PAYMENT DETAILS</Text>
+              <View style={{ backgroundColor: '#f5f7fb', padding: 14, borderRadius: 8 }}>
+                {company.bankDetails?.bankName ? (
+                  <View style={{ flexDirection: 'row', marginBottom: 4 }}>
+                    <Text style={{ width: 80, fontSize: 9, color: '#334155' }}>Bank Name</Text>
+                    <Text style={{ flex: 1, fontSize: 9, color: '#1e293b', fontWeight: 'bold' }}>{company.bankDetails.bankName}</Text>
+                  </View>
+                ) : null}
+                {company.bankDetails?.accountNumber ? (
+                  <View style={{ flexDirection: 'row', marginBottom: 4 }}>
+                    <Text style={{ width: 80, fontSize: 9, color: '#334155' }}>A/C Number</Text>
+                    <Text style={{ flex: 1, fontSize: 9, color: '#1e293b', fontWeight: 'bold' }}>{company.bankDetails.accountNumber}</Text>
+                  </View>
+                ) : null}
+                {company.bankDetails?.ifscCode ? (
+                  <View style={{ flexDirection: 'row' }}>
+                    <Text style={{ width: 80, fontSize: 9, color: '#334155' }}>IFSC Code</Text>
+                    <Text style={{ flex: 1, fontSize: 9, color: '#1e293b', fontWeight: 'bold' }}>{company.bankDetails.ifscCode}</Text>
+                  </View>
+                ) : null}
+              </View>
+            </View>
+            <View style={{ width: '48%' }}>
+              <Text style={{ fontSize: 9, fontWeight: 'bold', letterSpacing: 1.5, color: '#526585', marginBottom: 8 }}>NOTES</Text>
+              <View style={{ backgroundColor: '#f5f7fb', padding: 14, borderRadius: 8 }}>
+                {(company.termsAndConditions || []).map((t: string, i: number) => (
+                  <Text key={i} style={{ fontSize: 9, color: '#334155', marginBottom: 4 }}>• {t}</Text>
+                ))}
+              </View>
+            </View>
+          </View>
+
+          {/* Footer */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', position: 'absolute', bottom: 40, left: 40, right: 40 }}>
+            <View>
+              <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#111827' }}>Let's build something amazing together.</Text>
+              <View style={{ width: 50, height: 2, backgroundColor: '#3267ff', marginTop: 8, borderRadius: 2 }} />
+            </View>
+            <View style={{ alignItems: 'center' }}>
+              <View style={{ height: 1, width: 120, backgroundColor: '#64748b', marginBottom: 6 }} />
+              <Text style={{ fontSize: 9, color: '#64748b' }}>{company.signatoryLabel || 'Authorized Signature'}</Text>
+            </View>
+          </View>
+        </Page>
+      </Document>
+    );
+  }
+
   if (templateDef.base_layout === 'custom_html') {
     let htmlContent = templateDef.style_config?.html || '<h1>No Custom HTML Found</h1>';
     
