@@ -483,15 +483,15 @@ export function InvoiceDocument({
       <Document title={`${docTitle} ${inv.invoiceNumber}`}>
         <Page size="A4" style={{ backgroundColor: '#ffffff', padding: 40, position: 'relative' }}>
           {/* Background decorative circles */}
-          <View style={{ position: 'absolute', top: -30, right: -15, width: 95, height: 95, borderRadius: 50, backgroundColor: '#eef2ff' }} />
-          <View style={{ position: 'absolute', top: -20, right: 0, width: 65, height: 65, borderRadius: 50, backgroundColor: '#667eea', opacity: 0.9 }} />
+          <View style={{ position: 'absolute', top: -40, right: -40, width: 140, height: 140, borderRadius: 70, backgroundColor: '#eef2ff' }} />
+          <View style={{ position: 'absolute', top: -15, right: -15, width: 85, height: 85, borderRadius: 50, backgroundColor: '#667eea', opacity: 0.9 }} />
 
           {/* Header */}
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', zIndex: 1, marginBottom: 40 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', zIndex: 1, marginBottom: 40, marginTop: 25 }}>
             <View>
               {/* Logo / Brand Name */}
               {logoSrc ? (
-                <Image src={logoSrc} style={{ height: 40, width: 'auto', marginBottom: 8 }} />
+                <Image src={logoSrc} style={{ height: 60, width: 180, objectFit: 'contain', objectPositionX: 'left', marginBottom: 8 }} />
               ) : (
                 <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#0f172a', letterSpacing: -1 }}>{company.companyName}</Text>
               )}
