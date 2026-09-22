@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, MessageSquare, Send, CheckCircle2, ArrowLeft } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Mail, MessageSquare, Send, CheckCircle2 } from 'lucide-react';
 import { getSupabase } from '../../supabase/client';
 
 export default function ContactPage() {
@@ -38,17 +37,6 @@ export default function ContactPage() {
 
   return (
     <div className="min-h-screen bg-[#eef1f6] flex flex-col">
-      {/* Navbar */}
-      <nav className="h-[72px] bg-surface border-b border-border-color sticky top-0 z-50 flex items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link to="/" className="flex items-center gap-3 group">
-          <img src="/logo.png" alt="InvGen Logo" className="h-8 w-8 object-contain rounded-md border border-border-color shadow-sm group-hover:shadow-md transition-shadow grayscale opacity-80" />
-          <span className="text-xl font-bold tracking-tight">InvGen</span>
-        </Link>
-        <Link to="/" className="text-sm font-semibold text-ink-secondary hover:text-ink flex items-center gap-1.5 transition-colors">
-          <ArrowLeft className="h-4 w-4" /> Back to Home
-        </Link>
-      </nav>
-
       {/* Main Content */}
       <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8">
         <div className="w-full max-w-4xl grid md:grid-cols-5 gap-8 md:gap-12 bg-surface rounded-[2rem] border border-border-color shadow-sm overflow-hidden">

@@ -4,6 +4,7 @@ import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Calculator, CloudOff, Lock, CheckCircle2, IndianRupee, ArrowRight, Download, Menu, X, FileText, Check } from 'lucide-react';
 import PrivacyPolicy from './PrivacyPolicy';
 import TermsOfService from './TermsOfService';
+import ContactPage from './app/features/contact/ContactPage';
 import RequireAuth from './app/routes/RequireAuth';
 import RequireVerified from './app/routes/RequireVerified';
 import RequireOnboarded from './app/routes/RequireOnboarded';
@@ -129,6 +130,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsOfService />} />
+        <Route path="/contact" element={<ContactPage />} />
 
         {/* Web app (same Supabase backend as mobile) */}
         <Route path="/app/login" element={<LoginPage />} />
