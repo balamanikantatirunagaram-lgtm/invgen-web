@@ -534,6 +534,47 @@ export default function BuilderPage() {
             </Field>
           </Card>
 
+
+        </div>
+
+        {/* Center: items + parties */}
+        <div className="space-y-4">
+          <Card className="overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border-color">
+            <h2 className="font-bold">Items ({s.items.length})</h2>
+            <button
+              onClick={() => s.addItem()}
+              className="flex items-center gap-1.5 text-sm font-bold px-3.5 py-2 rounded-xl bg-ink text-surface hover:bg-ink-secondary transition-colors"
+            >
+              <Plus className="h-4 w-4" /> Add row
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[620px]">
+              <thead>
+                <tr className="border-b border-border-color bg-surface-soft/60 text-left">
+                  {['#', 'Product', 'Qty / Unit', 'Rate', 'GST %', 'Tax / Total', ''].map((h) => (
+                    <th key={h} className="px-2 py-2.5 text-xs font-bold uppercase tracking-wider text-ink-tertiary">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {s.items.map((it, i) => (
+                  <ItemRow
+                    key={it.key}
+                    item={it}
+                    index={i}
+                    products={products}
+                    deletable={s.items.length > 1}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
           <Card className="p-5 space-y-4">
             <h2 className="font-bold">Customer</h2>
             {clientsQuery.isLoading ? (
@@ -586,43 +627,6 @@ export default function BuilderPage() {
             )}
           </Card>
         </div>
-
-        {/* Center: items */}
-        <Card className="overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border-color">
-            <h2 className="font-bold">Items ({s.items.length})</h2>
-            <button
-              onClick={() => s.addItem()}
-              className="flex items-center gap-1.5 text-sm font-bold px-3.5 py-2 rounded-xl bg-ink text-surface hover:bg-ink-secondary transition-colors"
-            >
-              <Plus className="h-4 w-4" /> Add row
-            </button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[620px]">
-              <thead>
-                <tr className="border-b border-border-color bg-surface-soft/60 text-left">
-                  {['#', 'Product', 'Qty / Unit', 'Rate', 'GST %', 'Tax / Total', ''].map((h) => (
-                    <th key={h} className="px-2 py-2.5 text-xs font-bold uppercase tracking-wider text-ink-tertiary">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {s.items.map((it, i) => (
-                  <ItemRow
-                    key={it.key}
-                    item={it}
-                    index={i}
-                    products={products}
-                    deletable={s.items.length > 1}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
 
         {/* Right: sticky totals */}
         <div className="xl:col-span-2 2xl:col-span-1">

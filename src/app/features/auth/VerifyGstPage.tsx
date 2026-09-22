@@ -335,7 +335,7 @@ export default function VerifyGstPage() {
               </div>
               <div>
                 <label htmlFor="ex-state" className="block text-sm font-semibold mb-1.5">
-                  State (place of supply) *
+                  State / Union Territory (place of supply) *
                 </label>
                 <select
                   id="ex-state"
@@ -343,7 +343,7 @@ export default function VerifyGstPage() {
                   onChange={(e) => setExState(e.target.value)}
                   className="w-full rounded-xl border border-border-strong bg-bg-warm px-4 py-3 outline-none focus:border-ink transition-colors"
                 >
-                  <option value="">Select state…</option>
+                  <option value="">Select State / UT…</option>
                   {INDIAN_STATES.map((s) => (
                     <option key={s.code} value={s.code}>
                       {s.code} — {s.name}

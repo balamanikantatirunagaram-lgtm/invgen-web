@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Download, Pencil, Printer, RefreshCw, Trash2, ArrowRight } from 'lucide-react';
+import { Download, Pencil, Printer, RefreshCw, Trash2, ArrowRight, Share2 } from 'lucide-react';
 import { useCompany, useConvertQuotation, useDeleteQuotation, useOwnerId, useQuotations, useSetQuotationStatus } from '../../hooks/queries';
 import { userMessage } from '../../lib/errors';
 import { fmtDate, fmtInr } from '../../lib/format';
@@ -86,6 +86,54 @@ export default function QuotationsPage() {
       } as never;
       const bytes = await buildInvoicePdf(fakeInvoice as never, company, q.template, { docTitle: 'QUOTATION' });
       await printPdf(bytes, `${q.quotationNumber}.pdf`);
+    } catch (e) {
+      toast(userMessage(e));
+    } finally {
+      setBusyPdf(null);
+    }
+  };
+
+  const doShare = async (q: Quotation) => {
+    const company = needCompany();
+    if (!company || !ownerId) return;
+    setBusyPdf(q.quotationId);
+    try {
+      const { buildInvoicePdf } = await import('../../pdf/buildPdf');
+      const fakeInvoice = {
+        invoiceId: q.quotationId,
+        ownerId: q.ownerId,
+        invoiceNumber: q.quotationNumber,
+        invoiceDate: q.quotationDate,
+        poNumber: '',
+        poDate: q.validUntil,
+        vehicleNumber: '',
+        copyType: `Valid until ${q.validUntil ? fmtDate(q.validUntil) : '-'}`,
+        billTo: q.billTo,
+        shipTo: q.shipTo,
+        items: q.items,
+        isInterstate: q.isInterstate,
+        subTotal: q.subTotal,
+        totalTaxableValue: q.totalTaxableValue,
+        totalCGST: q.totalCGST,
+        totalSGST: q.totalSGST,
+        totalIGST: q.totalIGST,
+        roundOff: q.roundOff,
+        grandTotal: q.grandTotal,
+        amountInWords: q.amountInWords,
+        status: q.status,
+        template: q.template,
+        createdAt: q.createdAt,
+        updatedAt: q.updatedAt,
+        cancelledAt: null,
+      } as never;
+      const bytes = await buildInvoicePdf(fakeInvoice as never, company, q.template, { docTitle: 'QUOTATION' });
+      const filename = `${q.quotationNumber.replace(/\//g, '-')}.pdf`;
+      const file = new File([bytes], filename, { type: 'application/pdf' });
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: filename });
+      } else {
+        toast('Native sharing is not supported on this device/browser.');
+      }
     } catch (e) {
       toast(userMessage(e));
     } finally {
@@ -217,6 +265,9 @@ export default function QuotationsPage() {
                         <div className="flex items-center gap-0.5">
                           <button onClick={() => navigate(`/app/quotations/${q.quotationId}`)} className="p-2 rounded-lg hover:bg-surface-soft" title="View PDF">
                             <Download className="h-4 w-4" />
+                          </button>
+                          <button onClick={() => doShare(q)} disabled={busy} className="p-2 rounded-lg hover:bg-surface-soft disabled:opacity-50" title="Share">
+                            <Share2 className="h-4 w-4" />
                           </button>
                           <button onClick={() => doPrint(q)} disabled={busy} className="p-2 rounded-lg hover:bg-surface-soft disabled:opacity-50" title="Print">
                             <Printer className="h-4 w-4" />

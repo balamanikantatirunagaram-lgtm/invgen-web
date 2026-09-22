@@ -116,8 +116,8 @@ export default function AppShell() {
       )}
 
       <div className="lg:pl-64">
-        {/* Topbar */}
-        <header className="sticky top-0 z-40 bg-bg-warm/90 backdrop-blur border-b border-border-color">
+        {/* Topbar (Mobile Only now that + New Invoice is removed) */}
+        <header className="sticky top-0 z-40 bg-bg-warm/90 backdrop-blur border-b border-border-color lg:hidden">
           <div className="flex items-center gap-3 px-4 sm:px-6 lg:px-8 h-16">
             <button
               onClick={() => setOpen(true)}
@@ -126,12 +126,7 @@ export default function AppShell() {
             >
               <Menu className="h-6 w-6" />
             </button>
-            <Link
-              to="/app/invoices/new"
-              className="ml-auto bg-ink text-surface px-5 py-2 rounded-xl text-sm font-semibold hover:bg-ink-secondary transition-colors"
-            >
-              + New Invoice
-            </Link>
+
           </div>
         </header>
 

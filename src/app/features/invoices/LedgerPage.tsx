@@ -6,6 +6,7 @@ import {
   Pencil,
   Printer,
   RefreshCw,
+  Share2,
   Trash2,
   XCircle,
 } from 'lucide-react';
@@ -96,6 +97,29 @@ export default function LedgerPage() {
         docTitle: docTitleFor(company),
       });
       await printPdf(bytes, `${inv.invoiceNumber}.pdf`);
+    } catch (e) {
+      toast(userMessage(e));
+    } finally {
+      setBusyPdf(null);
+    }
+  };
+
+  const doShare = async (inv: Invoice) => {
+    const company = needCompany();
+    if (!company || !ownerId) return;
+    setBusyPdf(inv.invoiceId);
+    try {
+      const { buildInvoicePdf } = await import('../../pdf/buildPdf');
+      const bytes = await buildInvoicePdf(inv, company, inv.template ?? company.invoiceTemplate, {
+        docTitle: docTitleFor(company),
+      });
+      const filename = `${inv.invoiceNumber.replace(/\//g, '-')}.pdf`;
+      const file = new File([bytes], filename, { type: 'application/pdf' });
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: filename });
+      } else {
+        toast('Native sharing is not supported on this device/browser.');
+      }
     } catch (e) {
       toast(userMessage(e));
     } finally {
@@ -290,6 +314,15 @@ export default function LedgerPage() {
                             aria-label={`View ${inv.invoiceNumber} PDF`}
                           >
                             <Download className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => doShare(inv)}
+                            disabled={busy}
+                            className="p-2 rounded-lg hover:bg-surface-soft disabled:opacity-50"
+                            title="Share"
+                            aria-label={`Share ${inv.invoiceNumber}`}
+                          >
+                            <Share2 className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => doPrint(inv)}
