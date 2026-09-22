@@ -1,3 +1,4 @@
+import { useTemplates } from '../../hooks/useTemplates';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Plus, Trash2 } from 'lucide-react';
@@ -15,7 +16,7 @@ import { userMessage } from '../../lib/errors';
 import { COPY_TYPES, GST_SLABS, UNITS } from '../../lib/constants';
 import { fmtInr } from '../../lib/format';
 import { validateGstRate } from '../../lib/validators';
-import { formatInvoiceNumber, INVOICE_TEMPLATES, TEMPLATE_META, type Client, type InvoiceTemplate } from '../../api/types';
+import { formatInvoiceNumber,  type Client, type InvoiceTemplate } from '../../api/types';
 import { peekCounter } from '../../api/counters';
 import {
   buildNewInvoice,
@@ -298,6 +299,7 @@ function ItemRow({
 // ---------------------------------------------------------------------------
 
 export default function BuilderPage() {
+  const { data: templates = [] } = useTemplates();
   const { id: editId } = useParams();
   const isEdit = editId != null;
   const navigate = useNavigate();
@@ -525,9 +527,9 @@ export default function BuilderPage() {
                 onChange={(e) => s.setTemplate(e.target.value as InvoiceTemplate)}
                 className={inputCls}
               >
-                {INVOICE_TEMPLATES.map((t) => (
-                  <option key={t} value={t}>
-                    {TEMPLATE_META[t].label} — {TEMPLATE_META[t].description}
+                {templates.map((t: any) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} — {t.base_layout + " layout"}
                   </option>
                 ))}
               </select>

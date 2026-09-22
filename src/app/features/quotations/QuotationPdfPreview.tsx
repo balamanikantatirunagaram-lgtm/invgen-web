@@ -1,16 +1,18 @@
+import { useTemplates } from '../../hooks/useTemplates';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Download, Pencil, Printer, Share2 } from 'lucide-react';
 import { useCompany, useQuotation } from '../../hooks/queries';
 import { userMessage } from '../../lib/errors';
 import { fmtDate, fmtInr } from '../../lib/format';
-import { INVOICE_TEMPLATES, TEMPLATE_META, type InvoiceTemplate } from '../../api/types';
+import {  type InvoiceTemplate } from '../../api/types';
 import { buildInvoicePdf } from '../../pdf/buildPdf';
 import { downloadPdf, printPdf } from '../../pdf/print';
 import { Card, ErrorState, LoadingState, StatusChip, inputCls } from '../../components/ui';
 import { toast } from '../../components/toastBus';
 
 export default function QuotationPdfPreview() {
+  const { data: templates = [] } = useTemplates();
   const { id } = useParams();
   const quotationQuery = useQuotation(id);
   const companyQuery = useCompany();
@@ -158,9 +160,9 @@ export default function QuotationPdfPreview() {
         <label className="flex items-center gap-2 text-sm font-medium">
           Template
           <select value={activeTemplate} onChange={(e) => setTemplate(e.target.value as InvoiceTemplate)} className={`${inputCls} w-auto py-2`}>
-            {INVOICE_TEMPLATES.map((t) => (
-              <option key={t} value={t}>
-                {TEMPLATE_META[t].label}
+            {templates.map((t: any) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
               </option>
             ))}
           </select>

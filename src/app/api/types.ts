@@ -22,20 +22,27 @@ import {
 // Invoice templates
 // ---------------------------------------------------------------------------
 
-export const INVOICE_TEMPLATES = ['classic', 'modern', 'minimal', 'bold'] as const;
-export type InvoiceTemplate = (typeof INVOICE_TEMPLATES)[number];
+export type BaseLayout = 'classic' | 'modern' | 'minimal' | 'bold';
 
-export const TEMPLATE_META: Record<InvoiceTemplate, { label: string; description: string }> = {
-  classic: { label: 'Classic', description: 'Traditional GST boxed layout' },
-  modern: { label: 'Modern', description: 'Header band with logo + accent bar' },
-  minimal: { label: 'Minimal', description: 'Clean typographic, no boxes' },
-  bold: { label: 'Bold', description: 'Large title block, strong rules' },
-};
+export interface DynamicTemplate {
+  id: string;
+  name: string;
+  base_layout: BaseLayout;
+  is_pro: boolean;
+  style_config: {
+    primaryColor?: string;
+    fontFamily?: string;
+    [key: string]: any;
+  };
+}
+
+export type InvoiceTemplate = string;
+
+// For backwards compatibility where arrays were used:
+export const INVOICE_TEMPLATES = ['classic', 'modern', 'minimal', 'bold'] as const;
 
 export function templateFromId(id: string | null | undefined): InvoiceTemplate {
-  return (INVOICE_TEMPLATES as readonly string[]).includes(id ?? '')
-    ? (id as InvoiceTemplate)
-    : 'classic';
+  return id || 'classic';
 }
 
 // ---------------------------------------------------------------------------

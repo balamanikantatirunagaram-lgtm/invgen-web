@@ -17,7 +17,7 @@ import {
   type CompanySettings,
   type Invoice,
   type InvoiceParty,
-  type InvoiceTemplate,
+  
 } from '../api/types';
 import { logoDataUrl } from './logoUtil';
 
@@ -101,12 +101,12 @@ function rowStrings(inv: Invoice): string[][] {
 function PageHeader({
   inv,
   company,
-  template,
+  templateDef,
   docTitle,
 }: {
   inv: Invoice;
   company: CompanySettings;
-  template: InvoiceTemplate;
+  templateDef: import("../api/types").DynamicTemplate;
   docTitle: string;
 }) {
   const badge = (
@@ -116,7 +116,7 @@ function PageHeader({
   );
   const gstin = <Text style={styles.gstinLine}>GSTIN: {company.gstin === '' ? '-' : company.gstin}</Text>;
 
-  if (template === 'bold') {
+  if (templateDef.base_layout === 'bold') {
     return (
       <View>
         <View style={{ backgroundColor: INK, paddingVertical: 10 }}>
@@ -134,7 +134,7 @@ function PageHeader({
     );
   }
 
-  if (template === 'modern') {
+  if (templateDef.base_layout === 'modern') {
     return (
       <View>
         <View style={{ borderBottomWidth: 2, borderBottomColor: INK, paddingBottom: 4, flexDirection: 'row', alignItems: 'flex-end' }}>
@@ -164,15 +164,15 @@ function PageHeader({
       <View style={{ height: 2 }} />
       <Text
         style={{
-          fontSize: template === 'minimal' ? 13 : 16,
-          letterSpacing: template === 'minimal' ? 3 : 0,
+          fontSize: templateDef.base_layout === 'minimal' ? 13 : 16,
+          letterSpacing: templateDef.base_layout === 'minimal' ? 3 : 0,
           fontWeight: 'bold',
           textAlign: 'center',
         }}
       >
         {docTitle}
       </Text>
-      <View style={{ borderBottomWidth: template === 'minimal' ? 0.5 : 1, borderBottomColor: INK, marginTop: 4 }} />
+      <View style={{ borderBottomWidth: templateDef.base_layout === 'minimal' ? 0.5 : 1, borderBottomColor: INK, marginTop: 4 }} />
     </View>
   );
 }
@@ -180,13 +180,13 @@ function PageHeader({
 function IssuerBlock({
   company,
   logoSrc,
-  template,
+  templateDef,
 }: {
   company: CompanySettings;
   logoSrc: string | null;
-  template: InvoiceTemplate;
+  templateDef: import("../api/types").DynamicTemplate;
 }) {
-  const isModern = template === 'modern';
+  const isModern = templateDef.base_layout === 'modern';
   const row = (
     <View style={{ flexDirection: 'row' }}>
       {logoSrc && (
@@ -207,7 +207,7 @@ function IssuerBlock({
     </View>
   );
 
-  if (template === 'classic') {
+  if (templateDef.base_layout === 'classic') {
     return (
       <View style={{ backgroundColor: SOFT, borderWidth: 0.5, borderColor: MID, padding: 8 }}>
         {row}
@@ -217,11 +217,11 @@ function IssuerBlock({
   return row;
 }
 
-function Party({ title, p, template }: { title: string; p: InvoiceParty; template: InvoiceTemplate }) {
+function Party({ title, p, templateDef }: { title: string; p: InvoiceParty; templateDef: import("../api/types").DynamicTemplate }) {
   return (
     <View>
       <Text style={styles.partyTitle}>{title}</Text>
-      {template === 'modern' && (
+      {templateDef.base_layout === 'modern' && (
         <View style={{ width: 28, height: 2, backgroundColor: INK, marginTop: 2, marginBottom: 3 }} />
       )}
       <Text style={styles.partyName}>{p.businessName}</Text>
@@ -241,7 +241,7 @@ function Kv({ k, v }: { k: string; v: string }) {
   );
 }
 
-function PartiesAndMeta({ inv, template }: { inv: Invoice; template: InvoiceTemplate }) {
+function PartiesAndMeta({ inv, templateDef }: { inv: Invoice; templateDef: import("../api/types").DynamicTemplate }) {
   const meta = (
     <View>
       <Kv k="Invoice No" v={inv.invoiceNumber} />
@@ -253,14 +253,14 @@ function PartiesAndMeta({ inv, template }: { inv: Invoice; template: InvoiceTemp
     </View>
   );
   const boxed =
-    template === 'minimal' ? (
+    templateDef.base_layout === 'minimal' ? (
       meta
     ) : (
       <View
         style={{
           padding: 8,
-          borderWidth: template === 'modern' ? 0.8 : 0.5,
-          borderColor: template === 'modern' ? INK : MID,
+          borderWidth: templateDef.base_layout === 'modern' ? 0.8 : 0.5,
+          borderColor: templateDef.base_layout === 'modern' ? INK : MID,
         }}
       >
         {meta}
@@ -270,9 +270,9 @@ function PartiesAndMeta({ inv, template }: { inv: Invoice; template: InvoiceTemp
   return (
     <View style={{ flexDirection: 'row' }}>
       <View style={{ flex: 3 }}>
-        <Party title="Bill To" p={inv.billTo} template={template} />
+        <Party title="Bill To" p={inv.billTo} templateDef={templateDef} />
         <View style={{ height: 6 }} />
-        <Party title="Ship To" p={inv.shipTo} template={template} />
+        <Party title="Ship To" p={inv.shipTo} templateDef={templateDef} />
       </View>
       <View style={{ width: 12 }} />
       <View style={{ flex: 2 }}>{boxed}</View>
@@ -280,17 +280,17 @@ function PartiesAndMeta({ inv, template }: { inv: Invoice; template: InvoiceTemp
   );
 }
 
-function ItemsTable({ inv, template }: { inv: Invoice; template: InvoiceTemplate }) {
+function ItemsTable({ inv, templateDef }: { inv: Invoice; templateDef: import("../api/types").DynamicTemplate }) {
   const headers = ['Sl', 'Description\nHSN', 'Qty\nUnit', 'Rate', 'Taxable', 'CGST\nRt/Amt', 'SGST\nRt/Amt', 'IGST\nRt/Amt', 'Total'];
   const rows = rowStrings(inv);
-  const darkHeader = template === 'modern' || template === 'bold';
-  const fillHeader = template !== 'minimal';
+  const darkHeader = templateDef.base_layout === 'modern' || templateDef.base_layout === 'bold';
+  const fillHeader = templateDef.base_layout !== 'minimal';
 
-  const borderColor = template === 'classic' ? GREY600 : INK;
-  const borderWidth = template === 'bold' ? 0.8 : 0.5;
+  const borderColor = templateDef.style_config?.primaryColor || (templateDef.base_layout === 'classic' ? GREY600 : INK);
+  const borderWidth = templateDef.base_layout === 'bold' ? 0.8 : 0.5;
 
   const cellBorder =
-    template === 'minimal'
+    templateDef.base_layout === 'minimal'
       ? { borderBottomWidth: 0.3, borderBottomColor: SOFT }
       : { borderRightWidth: borderWidth, borderRightColor: borderColor };
 
@@ -301,20 +301,20 @@ function ItemsTable({ inv, template }: { inv: Invoice; template: InvoiceTemplate
   return (
     <View
       style={{
-        borderWidth: template === 'minimal' ? 0 : borderWidth,
+        borderWidth: templateDef.base_layout === 'minimal' ? 0 : borderWidth,
         borderColor,
-        borderTopWidth: template === 'minimal' ? 0.7 : borderWidth,
-        borderTopColor: template === 'minimal' ? INK : borderColor,
-        borderBottomWidth: template === 'minimal' ? 0.7 : borderWidth,
-        borderBottomColor: template === 'minimal' ? INK : borderColor,
+        borderTopWidth: templateDef.base_layout === 'minimal' ? 0.7 : borderWidth,
+        borderTopColor: templateDef.base_layout === 'minimal' ? INK : borderColor,
+        borderBottomWidth: templateDef.base_layout === 'minimal' ? 0.7 : borderWidth,
+        borderBottomColor: templateDef.base_layout === 'minimal' ? INK : borderColor,
       }}
     >
       {/* header */}
       <View
         style={{
           flexDirection: 'row',
-          backgroundColor: !fillHeader ? undefined : darkHeader ? INK : SOFT,
-          borderBottomWidth: template === 'minimal' ? 0 : borderWidth,
+          backgroundColor: !fillHeader ? undefined : darkHeader ? (templateDef.style_config?.primaryColor || INK) : SOFT,
+          borderBottomWidth: templateDef.base_layout === 'minimal' ? 0 : borderWidth,
           borderBottomColor: borderColor,
         }}
       >
@@ -352,13 +352,13 @@ function ItemsTable({ inv, template }: { inv: Invoice; template: InvoiceTemplate
   );
 }
 
-function SectionTitle({ text, template }: { text: string; template: InvoiceTemplate }) {
+function SectionTitle({ text, templateDef }: { text: string; templateDef: import("../api/types").DynamicTemplate }) {
   return (
     <View style={{ marginBottom: 2 }}>
-      <Text style={{ ...styles.sectionTitle, letterSpacing: template === 'minimal' ? 1.5 : 0 }}>
+      <Text style={{ ...styles.sectionTitle, letterSpacing: templateDef.base_layout === 'minimal' ? 1.5 : 0 }}>
         {text}
       </Text>
-      {template === 'modern' && (
+      {templateDef.base_layout === 'modern' && (
         <View style={{ width: 24, height: 1.5, backgroundColor: INK, marginTop: 2, marginBottom: 3 }} />
       )}
     </View>
@@ -368,14 +368,14 @@ function SectionTitle({ text, template }: { text: string; template: InvoiceTempl
 function FooterSplit({
   inv,
   company,
-  template,
+  templateDef,
 }: {
   inv: Invoice;
   company: CompanySettings;
-  template: InvoiceTemplate;
+  templateDef: import("../api/types").DynamicTemplate;
 }) {
-  const boldGrand = template === 'bold';
-  const rowBorder = template === 'minimal' ? SOFT : GREY400;
+  const boldGrand = templateDef.base_layout === 'bold';
+  const rowBorder = templateDef.base_layout === 'minimal' ? SOFT : GREY400;
 
   const totalRow = (label: string, value: string, bold: boolean, bg?: string, fg?: string) => (
     <View
@@ -402,9 +402,9 @@ function FooterSplit({
     <View>
       <View
         style={{
-          borderWidth: template === 'minimal' ? 0 : boldGrand ? 1 : 0.5,
+          borderWidth: templateDef.base_layout === 'minimal' ? 0 : boldGrand ? 1 : 0.5,
           borderColor: INK,
-          borderTopWidth: template === 'minimal' ? 0.8 : boldGrand ? 1 : 0.5,
+          borderTopWidth: templateDef.base_layout === 'minimal' ? 0.8 : boldGrand ? 1 : 0.5,
           borderTopColor: INK,
         }}
       >
@@ -417,7 +417,7 @@ function FooterSplit({
           'Grand Total',
           `Rs. ${m(inv.grandTotal)}`,
           true,
-          boldGrand ? INK : template === 'classic' ? SOFT : undefined,
+          boldGrand ? INK : templateDef.base_layout === 'classic' ? SOFT : undefined,
           boldGrand ? PAPER : undefined,
         )}
       </View>
@@ -432,16 +432,16 @@ function FooterSplit({
   return (
     <View style={{ flexDirection: 'row' }}>
       <View style={{ flex: 3 }}>
-        <SectionTitle text="Bank Details" template={template} />
+        <SectionTitle text="Bank Details" templateDef={templateDef} />
         <Text style={styles.small}>
           A/c: {company.bankDetails.accountNumber} - Bank: {company.bankDetails.bankName} - Branch:{' '}
           {company.bankDetails.branchName} - IFSC: {company.bankDetails.ifscCode}
         </Text>
         <View style={{ height: 6 }} />
-        <SectionTitle text="Amount in Words" template={template} />
+        <SectionTitle text="Amount in Words" templateDef={templateDef} />
         <Text style={styles.smallBold}>{inv.amountInWords}</Text>
         <View style={{ height: 6 }} />
-        <SectionTitle text="Terms & Conditions" template={template} />
+        <SectionTitle text="Terms & Conditions" templateDef={templateDef} />
         {company.termsAndConditions.map((t, i) => (
           <Text key={i} style={styles.tiny}>
             {i + 1}. {t}
@@ -461,12 +461,12 @@ function FooterSplit({
 export function InvoiceDocument({
   inv,
   company,
-  template,
+  templateDef,
   docTitle = 'TAX INVOICE',
 }: {
   inv: Invoice;
   company: CompanySettings;
-  template: InvoiceTemplate;
+  templateDef: import("../api/types").DynamicTemplate;
   /** Header title — 'TAX INVOICE' normally, 'BILL OF SUPPLY' when exempt. */
   docTitle?: string;
 }) {
@@ -475,15 +475,15 @@ export function InvoiceDocument({
   return (
     <Document title={`${docTitle} ${inv.invoiceNumber}`}>
       <Page size="A4" style={styles.page}>
-        <PageHeader inv={inv} company={company} template={template} docTitle={docTitle} />
+        <PageHeader inv={inv} company={company} templateDef={templateDef} docTitle={docTitle} />
         <View style={{ height: 8 }} />
-        <IssuerBlock company={company} logoSrc={logoSrc} template={template} />
+        <IssuerBlock company={company} logoSrc={logoSrc} templateDef={templateDef} />
         <View style={{ height: 8 }} />
-        <PartiesAndMeta inv={inv} template={template} />
+        <PartiesAndMeta inv={inv} templateDef={templateDef} />
         <View style={{ height: 10 }} />
-        <ItemsTable inv={inv} template={template} />
+        <ItemsTable inv={inv} templateDef={templateDef} />
         <View style={{ height: 10 }} />
-        <FooterSplit inv={inv} company={company} template={template} />
+        <FooterSplit inv={inv} company={company} templateDef={templateDef} />
         <View style={styles.footerFixed} fixed>
           <Text style={styles.footerText}>Generated {today} - Computer generated invoice</Text>
           <Text

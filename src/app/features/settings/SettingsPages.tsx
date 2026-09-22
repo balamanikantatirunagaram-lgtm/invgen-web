@@ -1,3 +1,4 @@
+import { useTemplates } from '../../hooks/useTemplates';
 import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Building2, ChevronRight, Landmark, ReceiptText } from 'lucide-react';
@@ -18,8 +19,7 @@ import { INDIAN_STATES, normalizeStateCode } from '../../lib/states';
 import { pickAndEncodeLogo } from '../../lib/logo';
 import { deleteAccountAndData } from '../../api/account';
 import {
-  INVOICE_TEMPLATES,
-  TEMPLATE_META,
+  
   decodeLogo,
   type CompanySettings,
   type InvoiceTemplate,
@@ -85,6 +85,7 @@ function HubRow({
 }
 
 export default function SettingsHubPage() {
+  const { data: templates = [] } = useTemplates();
   const companyQuery = useCompany();
   const navigate = useNavigate();
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -154,7 +155,7 @@ export default function SettingsHubPage() {
             to="/app/settings/invoicing"
             icon={<ReceiptText className="h-6 w-6 text-ink-secondary" />}
             title="Invoice preferences"
-            summary={`${c?.invoicePrefix ?? 'INV-'} • ${TEMPLATE_META[c?.invoiceTemplate ?? 'classic'].label}`}
+            summary={`${c?.invoicePrefix ?? 'INV-'} • ${templates.find((x: any) => x.id === (c?.invoiceTemplate ?? 'classic'))?.name || 'Classic'}`}
           />
 
           <Card className="p-5 border-red-200">
@@ -549,6 +550,7 @@ export function InvoicingSettingsPage() {
 }
 
 function InvoicingPrefsForm() {
+  const { data: templates = [] } = useTemplates();
   const { ownerId, companyQuery, saveMut } = useCompanyForm();
   const navigate = useNavigate();
 
@@ -602,9 +604,9 @@ function InvoicingPrefsForm() {
                 onChange={(e) => setTemplate(e.target.value as InvoiceTemplate)}
                 className={inputCls}
               >
-                {INVOICE_TEMPLATES.map((t) => (
-                  <option key={t} value={t}>
-                    {TEMPLATE_META[t].label} — {TEMPLATE_META[t].description}
+                {templates.map((t: any) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} — {t.base_layout + " layout"}
                   </option>
                 ))}
               </select>

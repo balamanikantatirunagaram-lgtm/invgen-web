@@ -1,3 +1,4 @@
+import { useTemplates } from '../../hooks/useTemplates';
 import { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Plus, Trash2 } from 'lucide-react';
@@ -7,7 +8,7 @@ import { userMessage } from '../../lib/errors';
 import { GST_SLABS, UNITS } from '../../lib/constants';
 import { fmtInr } from '../../lib/format';
 import { validateGstRate } from '../../lib/validators';
-import { formatQuotationNumber, type InvoiceTemplate, INVOICE_TEMPLATES, TEMPLATE_META } from '../../api/types';
+import { formatQuotationNumber, type InvoiceTemplate,  } from '../../api/types';
 import { peekCounter } from '../../api/counters';
 import { buildNewInvoice, effectiveUnit, useBuilder, validateBuilder, type BuilderItem } from '../invoices/builderStore';
 import { Card, ConfirmDialog, ErrorState, Field, LoadingState, StatusChip, inputCls } from '../../components/ui';
@@ -125,6 +126,7 @@ function ItemRow({ item, index, products, deletable }: { item: BuilderItem; inde
 }
 
 export default function QuotationBuilder() {
+  const { data: templates = [] } = useTemplates();
   const { id: editId } = useParams();
   const isEdit = editId != null;
   const navigate = useNavigate();
@@ -340,7 +342,7 @@ export default function QuotationBuilder() {
             </Field>
             <Field label="Template">
               <select value={s.template} onChange={(e) => s.setTemplate(e.target.value as InvoiceTemplate)} className={inputCls}>
-                {INVOICE_TEMPLATES.map((t) => (<option key={t} value={t}>{TEMPLATE_META[t].label} — {TEMPLATE_META[t].description}</option>))}
+                {templates.map((t: any) => (<option key={t.id} value={t.id}>{t.name} — {t.base_layout + " layout"}</option>))}
               </select>
             </Field>
           </Card>

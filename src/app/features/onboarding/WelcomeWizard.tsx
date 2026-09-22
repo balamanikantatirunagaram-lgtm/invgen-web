@@ -1,3 +1,4 @@
+import { useTemplates } from '../../hooks/useTemplates';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Check, ChevronRight, Building2, Users, Package, FilePlus2, ArrowRight } from 'lucide-react';
@@ -8,7 +9,7 @@ import { saveCompany } from '../../api/companies';
 import { userMessage } from '../../lib/errors';
 import { requiredField, validateGstin, validateMobile } from '../../lib/validators';
 import { normalizeStateCode, INDIAN_STATES } from '../../lib/states';
-import { TEMPLATE_META, INVOICE_TEMPLATES, type InvoiceTemplate } from '../../api/types';
+import {  type InvoiceTemplate } from '../../api/types';
 import { inputCls } from '../../components/ui';
 import { toast } from '../../components/toastBus';
 import { GST_SLABS, UNITS } from '../../lib/constants';
@@ -19,6 +20,7 @@ import { GST_SLABS, UNITS } from '../../lib/constants';
  * Skip sets onboardedAt without requiring data.
  */
 export default function WelcomeWizard() {
+  const { data: templates = [] } = useTemplates();
   const { user, profile } = useSession();
   const ownerId = useOwnerId();
   const companyQuery = useCompany();
@@ -342,17 +344,17 @@ export default function WelcomeWizard() {
               <div>
                 <label className="block text-sm font-semibold mb-1.5">Default template</label>
                 <div className="grid grid-cols-2 gap-3">
-                  {INVOICE_TEMPLATES.map((t) => (
+                  {templates.map((t: any) => (
                     <button
-                      key={t}
-                      onClick={() => setTemplate(t)}
+                      key={t.id}
+                      onClick={() => setTemplate(t.id)}
                       className={`p-4 rounded-2xl border-2 text-left transition-colors ${
-                        template === t ? 'border-ink bg-surface-soft' : 'border-border-color hover:border-border-strong'
+                        template === t.id ? 'border-ink bg-surface-soft' : 'border-border-color hover:border-border-strong'
                       }`}
                     >
-                      <p className="font-bold text-sm">{TEMPLATE_META[t].label}</p>
-                      <p className="text-xs text-ink-secondary mt-0.5">{TEMPLATE_META[t].description}</p>
-                      {template === t && <Check className="h-4 w-4 mt-2 text-ink" />}
+                      <p className="font-bold text-sm">{t.name}</p>
+                      <p className="text-xs text-ink-secondary mt-0.5">{t.base_layout + " layout"}</p>
+                      {template === t.id && <Check className="h-4 w-4 mt-2 text-ink" />}
                     </button>
                   ))}
                 </div>
