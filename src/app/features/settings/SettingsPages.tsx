@@ -1,7 +1,7 @@
 import { useTemplates } from '../../hooks/useTemplates';
 import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Building2, ChevronRight, Landmark, ReceiptText } from 'lucide-react';
+import { Building2, ChevronRight, Landmark, ReceiptText, MessageSquare } from 'lucide-react';
 import {
   useCompany,
   useOwnerId,
@@ -151,7 +151,13 @@ export default function SettingsHubPage() {
             title="Bank & payout"
             summary={bankLabel}
           />
-          <HubRow
+                    <HubRow
+            to="/app/settings/support"
+            icon={<MessageSquare className="h-6 w-6 text-ink-secondary" />}
+            title="Help & Support"
+            summary="Contact us or report an issue"
+          />
+<HubRow
             to="/app/settings/invoicing"
             icon={<ReceiptText className="h-6 w-6 text-ink-secondary" />}
             title="Invoice preferences"
@@ -619,6 +625,81 @@ function InvoicingPrefsForm() {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Help & Support
+// ---------------------------------------------------------------------------
+
+export function SupportSettingsPage() {
+  const { data: c } = useCompany();
+  const [message, setMessage] = useState('');
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const doSubmit = async () => {
+    if (!message.trim()) return;
+    setStatus('submitting');
+    try {
+      const email = useSession.getState().user?.email || c?.email || 'Unknown';
+      const name = c?.companyName || 'Unknown';
+      const { error } = await getSupabase().from('support_queries').insert({
+        name,
+        email,
+        message: message.trim(),
+        source: 'app_settings',
+        status: 'new'
+      });
+      if (error) throw error;
+      setStatus('success');
+      setMessage('');
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || 'Failed to submit query.');
+      setStatus('error');
+    }
+  };
+
+  return (
+    <div className="max-w-3xl">
+      <BackLink />
+      <PageHeader title="Help & Support" subtitle="Send a message to the InvGen team" />
+      <Card className="p-5 md:p-8 space-y-6">
+        {status === 'success' ? (
+          <div className="py-8 text-center space-y-4">
+            <h3 className="text-xl font-bold">Message Sent</h3>
+            <p className="text-ink-secondary">We will get back to you at your registered email address shortly.</p>
+            <PrimaryButton onClick={() => setStatus('idle')} className="px-6 py-2">
+              Send another message
+            </PrimaryButton>
+          </div>
+        ) : (
+          <>
+            <div>
+              <label className="block text-sm font-semibold mb-1.5">How can we help?</label>
+              <textarea 
+                rows={5} 
+                value={message} 
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Describe your issue, ask a question, or request a feature..."
+                className={`${inputCls} resize-none`}
+              />
+              {status === 'error' && <p className="mt-2 text-sm text-red-600">{errorMsg}</p>}
+            </div>
+            <div className="flex gap-4">
+              <PrimaryButton 
+                onClick={doSubmit} 
+                disabled={status === 'submitting' || message.trim() === ''} 
+                className="w-full py-3.5 flex items-center justify-center gap-2"
+              >
+                {status === 'submitting' ? 'Sending...' : 'Send Message'}
+              </PrimaryButton>
+            </div>
+          </>
+        )}
+      </Card>
     </div>
   );
 }

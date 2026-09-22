@@ -56,6 +56,7 @@ import SettingsHubPage, {
   BankSettingsPage,
   CompanySettingsPage,
   InvoicingSettingsPage,
+  SupportSettingsPage,
 } from './app/features/settings/SettingsPages';
 
 function App() {
@@ -153,6 +154,7 @@ function App() {
                 <Route path="/app/settings/company" element={<CompanySettingsPage />} />
                 <Route path="/app/settings/bank" element={<BankSettingsPage />} />
                 <Route path="/app/settings/invoicing" element={<InvoicingSettingsPage />} />
+                <Route path="/app/settings/support" element={<SupportSettingsPage />} />
               </Route>
             </Route>
           </Route>
