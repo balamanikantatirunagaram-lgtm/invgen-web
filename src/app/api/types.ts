@@ -22,7 +22,7 @@ import {
 // Invoice templates
 // ---------------------------------------------------------------------------
 
-export type BaseLayout = 'classic' | 'modern' | 'minimal' | 'bold';
+export type BaseLayout = 'classic' | 'modern' | 'minimal' | 'bold' | 'custom_html';
 
 export interface DynamicTemplate {
   id: string;

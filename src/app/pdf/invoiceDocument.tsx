@@ -13,6 +13,7 @@
  */
 import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
 import { fmtDate } from '../lib/format';
+import Html from 'react-pdf-html';
 import {
   type CompanySettings,
   type Invoice,
@@ -470,8 +471,38 @@ export function InvoiceDocument({
   /** Header title — 'TAX INVOICE' normally, 'BILL OF SUPPLY' when exempt. */
   docTitle?: string;
 }) {
+  
   const logoSrc = logoDataUrl(company.logoBase64);
   const today = fmtDate(new Date());
+
+  if (templateDef.base_layout === 'custom_html') {
+    let htmlContent = templateDef.style_config?.html || '<h1>No Custom HTML Found</h1>';
+    
+    // Simple interpolation
+    const m = (val: any) => Number(val).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+    const replacements = {
+      'inv.invoiceNumber': inv.invoiceNumber,
+      'inv.grandTotal': m(inv.grandTotal),
+      'company.companyName': company.companyName,
+      'company.gstin': company.gstin || '',
+      'inv.shipTo.name': inv.shipTo.businessName || '',
+      'inv.amountInWords': inv.amountInWords,
+      'primaryColor': templateDef.style_config?.primaryColor || '#000000',
+    };
+    
+    for (const [key, val] of Object.entries(replacements)) {
+      htmlContent = htmlContent.replace(new RegExp('\\{\\{' + key + '\\}\\}', 'g'), val);
+    }
+
+    return (
+      <Document title={`${docTitle} ${inv.invoiceNumber}`}>
+        <Page size="A4" style={{ padding: 30 }}>
+          <Html>{htmlContent}</Html>
+        </Page>
+      </Document>
+    );
+  }
+
   return (
     <Document title={`${docTitle} ${inv.invoiceNumber}`}>
       <Page size="A4" style={styles.page}>
