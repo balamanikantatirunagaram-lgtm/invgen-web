@@ -13,7 +13,6 @@
  */
 import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
 import { fmtDate } from '../lib/format';
-import Html from 'react-pdf-html';
 import {
   type CompanySettings,
   type Invoice,
@@ -631,74 +630,7 @@ export function InvoiceDocument({
     );
   }
 
-  if (templateDef.base_layout === 'custom_html') {
-    let htmlContent = templateDef.style_config?.html || '<h1>No Custom HTML Found</h1>';
-    
-    // Simple interpolation
-    const m = (val: any) => Number(val).toLocaleString('en-IN', { minimumFractionDigits: 2 });
-    
-    
-    // Process loops first: {{#each inv.items}} ... {{/each}}
-    htmlContent = htmlContent.replace(/\{\{#each inv\.items\}\}([\s\S]*?)\{\{\/each\}\}/g, (_match: string, loopContent: string) => {
-      if (!inv.items || !inv.items.length) return '';
-      return inv.items.map((item, idx) => {
-        let row = loopContent;
-        row = row.replace(/\{\{index\}\}/g, (idx + 1).toString());
-        row = row.replace(/\{\{item\.name\}\}/g, item.name || 'Item');
-        row = row.replace(/\{\{item\.qty\}\}/g, item.quantity.toString());
-        row = row.replace(/\{\{item\.rate\}\}/g, m(item.rate));
-        row = row.replace(/\{\{item\.total\}\}/g, m(item.itemTotal));
-        return row;
-      }).join('');
-    });
-
-    const replacements = {
-      'inv.invoiceNumber': inv.invoiceNumber,
-      'inv.invoiceDate': fmtDate(inv.invoiceDate),
-      'inv.grandTotal': m(inv.grandTotal),
-      'inv.subtotal': m(inv.subTotal),
-      'inv.totalTax': m(inv.totalCGST + inv.totalSGST + inv.totalIGST),
-      'company.companyName': company.companyName,
-      'company.address': company.address || '',
-      'company.phone': company.mobile || '',
-      'company.email': company.email || '',
-      'company.gstin': company.gstin || '',
-      'company.bankName': company.bankDetails?.bankName || '',
-      'company.bankAccountNumber': company.bankDetails?.accountNumber || '',
-      'company.bankIfsc': company.bankDetails?.ifscCode || '',
-      'inv.shipTo.businessName': inv.shipTo.businessName || '',
-      'inv.shipTo.address': inv.shipTo.address || '',
-      'inv.shipTo.mobile': inv.shipTo.mobile || '',
-      'inv.amountInWords': inv.amountInWords || '',
-      'primaryColor': templateDef.style_config?.primaryColor || '#000000',
-    };
-
-
-    
-    // Strip un-registered fonts to prevent crashes
-    htmlContent = htmlContent.replace(/font-family:[^;]+;/g, (match: string) => {
-      if (match.includes('Helvetica') || match.includes('Times') || match.includes('Courier')) {
-        // keep only the safe font
-        if (match.includes('Helvetica')) return 'font-family: Helvetica;';
-        if (match.includes('Times')) return 'font-family: Times-Roman;';
-        if (match.includes('Courier')) return 'font-family: Courier;';
-      }
-      return 'font-family: Helvetica;';
-    });
-
-    for (const [key, val] of Object.entries(replacements)) {
-      htmlContent = htmlContent.replace(new RegExp('\\{\\{' + key + '\\}\\}', 'g'), val);
-    }
-
-    return (
-      <Document title={`${docTitle} ${inv.invoiceNumber}`}>
-        <Page size="A4" style={{ padding: 30 }}>
-          <Html>{htmlContent}</Html>
-        </Page>
-      </Document>
-    );
-  }
-
+  
   return (
     <Document title={`${docTitle} ${inv.invoiceNumber}`}>
       <Page size="A4" style={styles.page}>
