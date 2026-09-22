@@ -87,7 +87,7 @@ function App() {
               <Link to="/#how-it-works" className="text-ink hover:text-ink-secondary font-medium transition-colors">How it Works</Link>
               <Link to="/#templates" className="text-ink hover:text-ink-secondary font-medium transition-colors">Templates</Link>
               <Link to="/#pricing" className="text-ink hover:text-ink-secondary font-medium transition-colors">Pricing</Link>
-              <Link to="/app/login" className="text-ink hover:text-ink-secondary font-medium transition-colors">Login</Link>
+              <Link to="/app/login?login=true" className="text-ink hover:text-ink-secondary font-medium transition-colors">Login</Link>
               <Link to="/app/login" className="bg-ink text-surface px-6 py-2.5 rounded-xl font-semibold hover:bg-ink-secondary transition-all shadow-sm">
                 Get Started
               </Link>
@@ -112,7 +112,7 @@ function App() {
             <Link to="/#how-it-works" onClick={() => setIsMenuOpen(false)} className="block text-ink font-medium">How it Works</Link>
             <Link to="/#templates" onClick={() => setIsMenuOpen(false)} className="block text-ink font-medium">Templates</Link>
             <Link to="/#pricing" onClick={() => setIsMenuOpen(false)} className="block text-ink font-medium">Pricing</Link>
-            <Link to="/app/login" onClick={() => setIsMenuOpen(false)} className="block text-ink font-medium">Login</Link>
+            <Link to="/app/login?login=true" onClick={() => setIsMenuOpen(false)} className="block text-ink font-medium">Login</Link>
             <Link to="/app/login" onClick={() => setIsMenuOpen(false)} className="block w-full text-center bg-ink text-surface px-5 py-3 rounded-xl font-medium">
               Get Started
             </Link>
@@ -173,7 +173,7 @@ function App() {
             <div>
               <h3 className="font-semibold text-ink mb-6 uppercase tracking-wider text-sm">Product</h3>
               <ul className="space-y-3">
-                <li><Link to="/app/login" className="text-ink-secondary hover:text-ink transition-colors">Web App</Link></li>
+                <li><Link to="/app/login?login=true" className="text-ink-secondary hover:text-ink transition-colors">Web App</Link></li>
                 <li><a href="#download" className="text-ink-secondary hover:text-ink transition-colors">Android App</a></li>
                 <li><a href="#download" className="text-ink-secondary hover:text-ink transition-colors">iOS App</a></li>
                 <li><a href="#download" className="text-ink-secondary hover:text-ink transition-colors">Desktop App</a></li>

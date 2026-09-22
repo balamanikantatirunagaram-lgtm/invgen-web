@@ -31,22 +31,22 @@ export default async function middleware(req: Request) {
     const path = url.pathname;
     
     const isAppRoute = path.startsWith('/app');
-    const hasWaitlistCookie = req.headers.get('cookie')?.includes('waitlist=1');
+    const isLoginIntent = url.searchParams.get('login') === 'true';
+    
+    // Check if they are likely already an existing user (have joined waitlist or have an auth session cookie)
+    const cookies = req.headers.get('cookie') || '';
+    const hasWaitlistCookie = cookies.includes('waitlist=1');
+    const hasAuthCookie = cookies.includes('sb-') && cookies.includes('-auth-token');
 
-    if (mode === 'coming_soon') {
+    if (mode === 'coming_soon' || mode === 'early_access') {
       if (isAppRoute) {
-        url.pathname = '/coming-soon';
-        return Response.redirect(url, 302);
-      }
-    } else if (mode === 'early_access') {
-      if (isAppRoute) {
-        // If they have already joined the waitlist, let them access the app routes (so they can log in if approved)
-        if (hasWaitlistCookie) {
+        // Allow access to the app routes if they are existing users who want to log in
+        if (isLoginIntent || hasAuthCookie || (mode === 'early_access' && hasWaitlistCookie)) {
           return next();
         }
-        
-        // Otherwise, send them to the waitlist page
-        url.pathname = '/early-access';
+
+        // Otherwise, they are a new user. Intercept them.
+        url.pathname = mode === 'coming_soon' ? '/coming-soon' : '/early-access';
         return Response.redirect(url, 302);
       }
     } else if (mode === 'live') {
