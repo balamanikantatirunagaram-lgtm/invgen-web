@@ -175,9 +175,9 @@ function App() {
               <h3 className="font-semibold text-ink mb-6 uppercase tracking-wider text-sm">Product</h3>
               <ul className="space-y-3">
                 <li><Link to="/app/login?login=true" className="text-ink-secondary hover:text-ink transition-colors">Web App</Link></li>
-                <li><a href="#download" className="text-ink-secondary hover:text-ink transition-colors">Android App</a></li>
-                <li><a href="#download" className="text-ink-secondary hover:text-ink transition-colors">iOS App</a></li>
-                <li><a href="#download" className="text-ink-secondary hover:text-ink transition-colors">Desktop App</a></li>
+                <li><span className="text-ink-secondary cursor-not-allowed">Android App <span className="ml-1 text-[10px] font-bold tracking-wider text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase">Coming Soon</span></span></li>
+                <li><span className="text-ink-secondary cursor-not-allowed">iOS App <span className="ml-1 text-[10px] font-bold tracking-wider text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase">Coming Soon</span></span></li>
+                <li><span className="text-ink-secondary cursor-not-allowed">Desktop App <span className="ml-1 text-[10px] font-bold tracking-wider text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase">Coming Soon</span></span></li>
               </ul>
             </div>
             <div>
@@ -185,7 +185,7 @@ function App() {
               <ul className="space-y-3">
                 <li><Link to="/privacy-policy" className="text-ink-secondary hover:text-ink transition-colors">Privacy Policy</Link></li>
                 <li><Link to="/terms" className="text-ink-secondary hover:text-ink transition-colors">Terms of Service</Link></li>
-                <li><a href="mailto:support@invgen.com" className="text-ink-secondary hover:text-ink transition-colors">Contact Us</a></li>
+                <li><Link to="/contact" className="text-ink-secondary hover:text-ink transition-colors">Contact Us</Link></li>
               </ul>
             </div>
           </div>
