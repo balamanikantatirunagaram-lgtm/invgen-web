@@ -30,8 +30,8 @@ export default async function middleware(req: Request) {
     const mode = data[0].value?.mode || 'live';
     const path = url.pathname;
     
-    // Only intercept paths starting with /app. This keeps the public homepage (/) accessible!
     const isAppRoute = path.startsWith('/app');
+    const hasWaitlistCookie = req.headers.get('cookie')?.includes('waitlist=1');
 
     if (mode === 'coming_soon') {
       if (isAppRoute) {
@@ -40,12 +40,12 @@ export default async function middleware(req: Request) {
       }
     } else if (mode === 'early_access') {
       if (isAppRoute) {
-        // If they specifically clicked "Already approved? Log in here" with ?login=true, let them hit the login page
-        if (path === '/app/login' && url.searchParams.get('login') === 'true') {
+        // If they have already joined the waitlist, let them access the app routes (so they can log in if approved)
+        if (hasWaitlistCookie) {
           return next();
         }
         
-        // Otherwise, block access to the app and send them to the early access waitlist form
+        // Otherwise, send them to the waitlist page
         url.pathname = '/early-access';
         return Response.redirect(url, 302);
       }

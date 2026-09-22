@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { getSupabase } from '../../supabase/client';
-import { Link } from 'react-router-dom';
 
 export default function EarlyAccessLanding() {
   const [email, setEmail] = useState('');
@@ -20,11 +19,17 @@ export default function EarlyAccessLanding() {
         .from('early_access_requests')
         .insert([{ email, name }]);
 
+      // Mark that they have visited/joined the waitlist so middleware lets them to /app/login
+      document.cookie = "waitlist=1; path=/; max-age=31536000"; // 1 year expiry
+
       if (dbError) {
-        if (dbError.code === '23505') throw new Error('You are already on the waitlist!');
+        if (dbError.code === '23505') {
+          // Already on waitlist - bypass to login directly
+          window.location.href = '/app/login';
+          return;
+        }
         throw dbError;
       }
-
       
       setSubmitted(true);
     } catch (err: any) {
@@ -37,12 +42,20 @@ export default function EarlyAccessLanding() {
   if (submitted) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-bg-warm text-center p-6">
-        <div className="max-w-md space-y-4 bg-surface p-8 rounded-3xl border border-border-color shadow-sm">
-          <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">✓</div>
+        <div className="max-w-md space-y-6 bg-surface p-8 rounded-3xl border border-border-color shadow-sm">
+          <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto text-3xl">✓</div>
           <h1 className="text-2xl font-bold text-ink">You're on the list!</h1>
           <p className="text-ink-secondary">
-            Thank you for your interest. We'll send you an email as soon as we grant you access.
+            Thank you for joining. Once an admin approves your request, you'll be able to log in and use the app.
           </p>
+          <div className="pt-4">
+            <button 
+              onClick={() => window.location.href = '/app/login'}
+              className="w-full bg-surface-soft border border-border-strong text-ink py-3.5 rounded-xl font-bold hover:bg-border-color transition-colors"
+            >
+              Go to Login Page
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -92,15 +105,6 @@ export default function EarlyAccessLanding() {
             {loading ? 'Joining...' : 'Join the Waitlist'}
           </button>
         </form>
-
-        <div className="text-center pt-4 border-t border-border-color">
-          <p className="text-sm text-ink-secondary">
-            Already approved?{' '}
-            <Link to="/app/login?login=true" className="font-bold text-ink hover:underline">
-              Log in here
-            </Link>
-          </p>
-        </div>
       </div>
     </div>
   );
