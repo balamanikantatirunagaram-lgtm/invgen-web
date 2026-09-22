@@ -96,7 +96,7 @@ export default function EarlyAccessLanding() {
         <div className="text-center pt-4 border-t border-border-color">
           <p className="text-sm text-ink-secondary">
             Already approved?{' '}
-            <Link to="/app/login" className="font-bold text-ink hover:underline">
+            <Link to="/app/login?login=true" className="font-bold text-ink hover:underline">
               Log in here
             </Link>
           </p>

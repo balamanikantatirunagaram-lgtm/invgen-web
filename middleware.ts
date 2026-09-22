@@ -29,15 +29,23 @@ export default async function middleware(req: Request) {
 
     const mode = data[0].value?.mode || 'live';
     const path = url.pathname;
+    
+    // Only intercept paths starting with /app. This keeps the public homepage (/) accessible!
+    const isAppRoute = path.startsWith('/app');
 
     if (mode === 'coming_soon') {
-      if (path !== '/coming-soon') {
+      if (isAppRoute) {
         url.pathname = '/coming-soon';
         return Response.redirect(url, 302);
       }
     } else if (mode === 'early_access') {
-      // Allow them to go to login or early-access routes
-      if (path !== '/early-access' && !path.startsWith('/app/login') && !path.startsWith('/app/auth')) {
+      if (isAppRoute) {
+        // If they specifically clicked "Already approved? Log in here" with ?login=true, let them hit the login page
+        if (path === '/app/login' && url.searchParams.get('login') === 'true') {
+          return next();
+        }
+        
+        // Otherwise, block access to the app and send them to the early access waitlist form
         url.pathname = '/early-access';
         return Response.redirect(url, 302);
       }
