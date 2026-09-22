@@ -128,7 +128,7 @@ export default function QuotationsPage() {
       } as never;
       const bytes = await buildInvoicePdf(fakeInvoice as never, company, q.template, { docTitle: 'QUOTATION' });
       const filename = `${q.quotationNumber.replace(/\//g, '-')}.pdf`;
-      const file = new File([bytes], filename, { type: 'application/pdf' });
+      const file = new File([bytes.slice()], filename, { type: 'application/pdf' });
       if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file], title: filename });
       } else {

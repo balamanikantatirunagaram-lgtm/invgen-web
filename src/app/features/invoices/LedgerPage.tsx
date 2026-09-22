@@ -114,7 +114,7 @@ export default function LedgerPage() {
         docTitle: docTitleFor(company),
       });
       const filename = `${inv.invoiceNumber.replace(/\//g, '-')}.pdf`;
-      const file = new File([bytes], filename, { type: 'application/pdf' });
+      const file = new File([bytes.slice()], filename, { type: 'application/pdf' });
       if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file], title: filename });
       } else {

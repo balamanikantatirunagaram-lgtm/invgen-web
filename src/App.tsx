@@ -15,6 +15,8 @@ import BuilderPage from './app/features/invoices/BuilderPage';
 import LedgerPage from './app/features/invoices/LedgerPage';
 import QuotationsPage from './app/features/quotations/QuotationsPage';
 import QuotationBuilder from './app/features/quotations/QuotationBuilder';
+import ComingSoonPage from './app/features/launch/ComingSoonPage';
+import EarlyAccessLanding from './app/features/launch/EarlyAccessLanding';
 
 // Lazy: @react-pdf/renderer is heavy — split it out of the main bundle.
 const PdfPreviewPage = React.lazy(() => import('./app/features/invoices/PdfPreviewPage'));
@@ -120,6 +122,8 @@ function App() {
       )}
 
       <Routes>
+        <Route path="/coming-soon" element={<ComingSoonPage />} />
+        <Route path="/early-access" element={<EarlyAccessLanding />} />
         <Route path="/" element={<Home />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsOfService />} />
