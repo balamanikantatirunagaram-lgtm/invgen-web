@@ -1,3 +1,5 @@
+import TemplatePreviewPage from "./app/features/invoices/TemplatePreviewPage";
+
 import React from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Calculator, CloudOff, Lock, CheckCircle2, IndianRupee, ArrowRight, Download, Menu, X, FileText, Check } from 'lucide-react';
@@ -122,6 +124,7 @@ function App() {
       )}
 
       <Routes>
+        <Route path="/template-preview" element={<TemplatePreviewPage />} />
         <Route path="/coming-soon" element={<ComingSoonPage />} />
         <Route path="/early-access" element={<EarlyAccessLanding />} />
         <Route path="/" element={<Home />} />
