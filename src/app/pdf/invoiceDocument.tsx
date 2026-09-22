@@ -490,6 +490,17 @@ export function InvoiceDocument({
       'primaryColor': templateDef.style_config?.primaryColor || '#000000',
     };
     
+    // Strip un-registered fonts to prevent crashes
+    htmlContent = htmlContent.replace(/font-family:[^;]+;/g, (match: string) => {
+      if (match.includes('Helvetica') || match.includes('Times') || match.includes('Courier')) {
+        // keep only the safe font
+        if (match.includes('Helvetica')) return 'font-family: Helvetica;';
+        if (match.includes('Times')) return 'font-family: Times-Roman;';
+        if (match.includes('Courier')) return 'font-family: Courier;';
+      }
+      return 'font-family: Helvetica;';
+    });
+
     for (const [key, val] of Object.entries(replacements)) {
       htmlContent = htmlContent.replace(new RegExp('\\{\\{' + key + '\\}\\}', 'g'), val);
     }
