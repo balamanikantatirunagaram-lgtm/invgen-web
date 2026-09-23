@@ -458,7 +458,7 @@ function FooterSplit({
 // ---------------------------------------------------------------------------
 
 /**
- * Free-tier watermark, drawn on every page of both layout branches.
+ * INVGEN watermark, bottom-right of every page of both layout branches.
  * NOTE: View/Text styles do NOT support `transform` in @react-pdf/renderer —
  * rotation must go through a Canvas painter (verified against v4 render API).
  */
@@ -469,13 +469,13 @@ function Watermark() {
       style={{ position: 'absolute', top: 0, left: 0, width: 595, height: 842 }}
       paint={(p, w, h) => {
         p.save()
-          .translate(w / 2, h / 2)
+          .translate(w - 150, h - 130)
           .rotate(-35)
           .font('Helvetica-Bold')
           .fontSize(72)
           .fillColor('#808080')
           .fillOpacity(0.22)
-          .text('INVGEN FREE', -250, -26)
+          .text('INVGEN', -190, -26)
           .restore();
         return null;
       }}
@@ -488,12 +488,15 @@ export function InvoiceDocument({
   company,
   templateDef,
   docTitle = 'TAX INVOICE',
+  watermark = true,
 }: {
   inv: Invoice;
   company: CompanySettings;
   templateDef: import("../api/types").DynamicTemplate;
   /** Header title — 'TAX INVOICE' normally, 'BILL OF SUPPLY' when exempt. */
   docTitle?: string;
+  /** INVGEN watermark; resolved from global + per-user flags by callers. */
+  watermark?: boolean;
 }) {
   
   const logoSrc = logoDataUrl(company.logoBase64);
@@ -506,7 +509,7 @@ export function InvoiceDocument({
     return (
       <Document title={`${docTitle} ${inv.invoiceNumber}`}>
         <Page size="A4" style={{ backgroundColor: '#ffffff', padding: 40, position: 'relative' }}>
-          <Watermark />
+          {watermark && <Watermark />}
           {/* Background decorative circles */}
           <View style={{ position: 'absolute', top: -40, right: -40, width: 140, height: 140, borderRadius: 70, backgroundColor: '#eef2ff' }} />
           <View style={{ position: 'absolute', top: -15, right: -15, width: 85, height: 85, borderRadius: 50, backgroundColor: '#667eea', opacity: 0.9 }} />
@@ -660,7 +663,7 @@ export function InvoiceDocument({
   return (
     <Document title={`${docTitle} ${inv.invoiceNumber}`}>
       <Page size="A4" style={styles.page}>
-        <Watermark />
+        {watermark && <Watermark />}
         <PageHeader inv={inv} company={company} templateDef={templateDef} docTitle={docTitle} />
         <View style={{ height: 8 }} />
         <IssuerBlock company={company} logoSrc={logoSrc} templateDef={templateDef} />

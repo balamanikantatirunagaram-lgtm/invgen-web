@@ -60,6 +60,8 @@ export interface UserProfile {
   gstVerified: boolean;
   /** Non-GST (Bill of Supply) mode — passes guards without verification. */
   gstExempt: boolean;
+  /** Per-user INVGEN PDF watermark flag (admin-controlled). */
+  watermarkEnabled: boolean;
   /** Wizard completion (Phase B). Null = not yet onboarded. */
   onboardedAt: Date | null;
   verifiedAt: Date | null;
@@ -77,13 +79,14 @@ export function userProfileFromRow(j: Row, uid: string): UserProfile {
     address: rowString(j['address']),
     gstVerified: rowBool(j['gst_verified']),
     gstExempt: rowBool(j['gst_exempt']),
+    watermarkEnabled: j['watermark_enabled'] !== false,
     onboardedAt: rowDateTime(j['onboarded_at']),
     verifiedAt: rowDateTime(j['verified_at']),
     verificationStatus: rowString(j['verification_status']),
   };
 }
 
-export function userProfileToRow(p: Omit<UserProfile, 'uid'>): Row {
+export function userProfileToRow(p: Omit<UserProfile, 'uid' | 'watermarkEnabled'>): Row {
   return {
     email: p.email,
     display_name: p.displayName,

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Download, Pencil, Printer, RefreshCw, Trash2, ArrowRight, Share2 } from 'lucide-react';
-import { useCompany, useConvertQuotation, useDeleteQuotation, useOwnerId, useQuota, useQuotations, useSetQuotationStatus } from '../../hooks/queries';
+import { useCompany, useConvertQuotation, useDeleteQuotation, useOwnerId, useQuota, useQuotations, useSetQuotationStatus, useWatermark } from '../../hooks/queries';
 import { AppError, userMessage } from '../../lib/errors';
 import { FREE_MONTHLY_LIMIT } from '../../api/usage';
 import { fmtDate, fmtInr } from '../../lib/format';
@@ -31,6 +31,7 @@ export default function QuotationsPage() {
   };
   const listQuery = useQuotations(filter, 50);
   const quotaQuery = useQuota('quotations');
+  const { data: watermark = true } = useWatermark();
   const deleteMut = useDeleteQuotation();
   const convertMut = useConvertQuotation();
   const statusMut = useSetQuotationStatus();
@@ -86,7 +87,7 @@ export default function QuotationsPage() {
         updatedAt: q.updatedAt,
         cancelledAt: null,
       } as never;
-      const bytes = await buildInvoicePdf(fakeInvoice as never, company, q.template, { docTitle: 'QUOTATION' });
+      const bytes = await buildInvoicePdf(fakeInvoice as never, company, q.template, { docTitle: 'QUOTATION', watermark });
       await printPdf(bytes, `${q.quotationNumber}.pdf`);
     } catch (e) {
       toast(userMessage(e));
@@ -128,7 +129,7 @@ export default function QuotationsPage() {
         updatedAt: q.updatedAt,
         cancelledAt: null,
       } as never;
-      const bytes = await buildInvoicePdf(fakeInvoice as never, company, q.template, { docTitle: 'QUOTATION' });
+      const bytes = await buildInvoicePdf(fakeInvoice as never, company, q.template, { docTitle: 'QUOTATION', watermark });
       const filename = `${q.quotationNumber.replace(/\//g, '-')}.pdf`;
       const file = new File([bytes.slice()], filename, { type: 'application/pdf' });
       if (navigator.canShare?.({ files: [file] })) {

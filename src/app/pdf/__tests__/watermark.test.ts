@@ -83,15 +83,23 @@ const inv: Invoice = {
   cancelledAt: null,
 };
 
-describe('free-tier watermark', () => {
-  test('classic PDF embeds rotated INVGEN FREE text', async () => {
+describe('INVGEN watermark', () => {
+  test('classic PDF embeds rotated INVGEN text by default', async () => {
     const bytes = await buildInvoicePdf(inv, company, 'classic');
     const raw = pdfText(bytes);
     // Body text is hex-encoded (possibly kern-split), so match the chunks:
-    // 'INV' = 494e56, 'GEN FREE' = 47454e2046524545
+    // 'INV' = 494e56, 'GEN' = 47454e
     expect(raw).toContain('494e56');
-    expect(raw).toContain('47454e2046524545');
+    expect(raw).toContain('47454e');
     // rotate(-35°) emits a cos/sin matrix: cos=0.819152, sin=-0.573576
     expect(raw).toContain('0.819152 -0.573576');
+  });
+
+  test('watermark:false omits the stamp', async () => {
+    const bytes = await buildInvoicePdf(inv, company, 'classic', { watermark: false });
+    const raw = pdfText(bytes);
+    // Rotation is unique to the watermark painter (invoice number 'INV-0001'
+    // shares the 'INV' hex chunk, so the matrix is the real signal).
+    expect(raw).not.toContain('0.819152 -0.573576');
   });
 });

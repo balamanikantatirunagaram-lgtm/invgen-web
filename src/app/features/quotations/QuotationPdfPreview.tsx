@@ -2,7 +2,7 @@ import { useTemplates } from '../../hooks/useTemplates';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Download, Pencil, Printer, Share2 } from 'lucide-react';
-import { useCompany, useQuotation } from '../../hooks/queries';
+import { useCompany, useQuotation, useWatermark } from '../../hooks/queries';
 import { userMessage } from '../../lib/errors';
 import { fmtDate, fmtInr } from '../../lib/format';
 import {  type InvoiceTemplate } from '../../api/types';
@@ -16,6 +16,7 @@ export default function QuotationPdfPreview() {
   const { id } = useParams();
   const quotationQuery = useQuotation(id);
   const companyQuery = useCompany();
+  const { data: watermark = true } = useWatermark();
 
   const [template, setTemplate] = useState<InvoiceTemplate | null>(null);
   const [url, setUrl] = useState<string | null>(null);
@@ -66,7 +67,7 @@ export default function QuotationPdfPreview() {
       updatedAt: liveQ.updatedAt,
       cancelledAt: null,
     } as never;
-    buildInvoicePdf(fakeInvoice as never, liveCompany, activeTemplate, { docTitle: 'QUOTATION' })
+    buildInvoicePdf(fakeInvoice as never, liveCompany, activeTemplate, { docTitle: 'QUOTATION', watermark })
       .then((b) => {
         if (!alive) return;
         const blob = new Blob([b.slice()], { type: 'application/pdf' });
@@ -86,7 +87,7 @@ export default function QuotationPdfPreview() {
     return () => {
       alive = false;
     };
-  }, [qStamp, companyStamp, activeTemplate, retryNonce]);
+  }, [qStamp, companyStamp, activeTemplate, watermark, retryNonce]);
 
   useEffect(() => {
     return () => {

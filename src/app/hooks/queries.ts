@@ -55,6 +55,7 @@ import {
   type NewQuotation,
 } from '../api/quotations';
 import { countThisMonth, type QuotaKind } from '../api/usage';
+import { resolveWatermark } from '../api/watermark';
 import type {
   Client,
   CompanySettings,
@@ -141,7 +142,11 @@ export function useCompany(): UseQueryResult<CompanySettings | null> {
   });
 }
 
-export function useSaveProfile(): UseMutationResult<void, Error, Omit<UserProfile, 'uid'>> {
+export function useSaveProfile(): UseMutationResult<
+  void,
+  Error,
+  Omit<UserProfile, 'uid' | 'watermarkEnabled'>
+> {
   const queryClient = useQueryClient();
   const ownerId = useOwnerId();
   return useMutation({
@@ -402,6 +407,20 @@ export function useQuota(kind: QuotaKind): UseQueryResult<number> {
   return useQuery({
     queryKey: ['app', ownerId, 'quota', kind],
     queryFn: () => countThisMonth(ownerId as string, kind),
+    enabled: enabled(ownerId),
+    refetchInterval: POLL_MS,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// PDF watermark (global kill-switch AND per-user flag, cached)
+// ---------------------------------------------------------------------------
+
+export function useWatermark(): UseQueryResult<boolean> {
+  const ownerId = useOwnerId();
+  return useQuery({
+    queryKey: ['app', ownerId, 'watermark'],
+    queryFn: () => resolveWatermark(ownerId as string),
     enabled: enabled(ownerId),
     refetchInterval: POLL_MS,
   });

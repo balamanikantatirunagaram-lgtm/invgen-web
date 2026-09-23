@@ -9,7 +9,7 @@ export async function buildInvoicePdf(
   inv: Invoice,
   company: CompanySettings,
   template: InvoiceTemplate,
-  opts: { docTitle?: string } = {},
+  opts: { docTitle?: string; watermark?: boolean } = {},
 ): Promise<Uint8Array> {
   // Try to resolve the template definition
   let templateDef = OFFLINE_TEMPLATES.find(t => t.id === template);
@@ -40,6 +40,7 @@ export async function buildInvoicePdf(
     company,
     templateDef,
     docTitle: opts.docTitle ?? 'TAX INVOICE',
+    watermark: opts.watermark ?? true,
   }) as unknown as ReactElement<DocumentProps>;
   
   const instance = pdf(doc);

@@ -19,6 +19,7 @@ import {
   useOwnerId,
   useQuota,
   useSetInvoiceStatus,
+  useWatermark,
 } from '../../hooks/queries';
 import { AppError, userMessage } from '../../lib/errors';
 import { FREE_MONTHLY_LIMIT } from '../../api/usage';
@@ -69,6 +70,7 @@ export default function LedgerPage() {
   };
   const listQuery = useInvoices(filter, 50);
   const quotaQuery = useQuota('invoices');
+  const { data: watermark = true } = useWatermark();
   const deleteMut = useDeleteInvoice();
   const cancelMut = useCancelInvoice();
   const paidMut = useSetInvoiceStatus();
@@ -99,6 +101,7 @@ export default function LedgerPage() {
       const { buildInvoicePdf } = await import('../../pdf/buildPdf');
       const bytes = await buildInvoicePdf(inv, company, inv.template ?? company.invoiceTemplate, {
         docTitle: docTitleFor(company),
+        watermark,
       });
       await printPdf(bytes, `${inv.invoiceNumber}.pdf`);
     } catch (e) {
@@ -116,6 +119,7 @@ export default function LedgerPage() {
       const { buildInvoicePdf } = await import('../../pdf/buildPdf');
       const bytes = await buildInvoicePdf(inv, company, inv.template ?? company.invoiceTemplate, {
         docTitle: docTitleFor(company),
+        watermark,
       });
       const filename = `${inv.invoiceNumber.replace(/\//g, '-')}.pdf`;
       const file = new File([bytes.slice()], filename, { type: 'application/pdf' });

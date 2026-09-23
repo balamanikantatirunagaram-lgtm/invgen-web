@@ -2,7 +2,7 @@ import { useTemplates } from '../../hooks/useTemplates';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Download, Pencil, Printer, Share2 } from 'lucide-react';
-import { useCompany, useInvoice } from '../../hooks/queries';
+import { useCompany, useInvoice, useWatermark } from '../../hooks/queries';
 import { userMessage } from '../../lib/errors';
 import { fmtDate, fmtInr } from '../../lib/format';
 import {
@@ -32,6 +32,7 @@ export default function PdfPreviewPage() {
   const { id } = useParams();
   const invoiceQuery = useInvoice(id);
   const companyQuery = useCompany();
+  const { data: watermark = true } = useWatermark();
 
   const [template, setTemplate] = useState<InvoiceTemplate | null>(null);
   const [url, setUrl] = useState<string | null>(null);
@@ -59,6 +60,7 @@ export default function PdfPreviewPage() {
     setBuildError(null);
     buildInvoicePdf(liveInv, liveCompany, activeTemplate, {
       docTitle: docTitleFor(liveCompany),
+      watermark,
     })
       .then((b) => {
         if (!alive) return;
@@ -80,7 +82,7 @@ export default function PdfPreviewPage() {
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [invStamp, companyStamp, activeTemplate, retryNonce]);
+  }, [invStamp, companyStamp, activeTemplate, watermark, retryNonce]);
 
   useEffect(() => {
     return () => {

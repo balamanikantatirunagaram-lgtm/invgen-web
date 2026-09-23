@@ -19,7 +19,11 @@ export async function fetchProfile(uid: string): Promise<UserProfile | null> {
   }
 }
 
-export async function saveProfile(uid: string, p: Omit<UserProfile, 'uid'>): Promise<void> {
+/** watermarkEnabled is admin-only: never written from the client. */
+export async function saveProfile(
+  uid: string,
+  p: Omit<UserProfile, 'uid' | 'watermarkEnabled'>,
+): Promise<void> {
   try {
     const { error } = await getSupabase()
       .from('profiles')
