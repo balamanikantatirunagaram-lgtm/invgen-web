@@ -2,6 +2,7 @@
 import React from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Calculator, CloudOff, Lock, CheckCircle2, IndianRupee, ArrowRight, Download, Menu, X, FileText, Check } from 'lucide-react';
+import { Analytics } from '@vercel/analytics/react';
 import CookiePolicy from "./CookiePolicy";
 import PrivacyPolicy from './PrivacyPolicy';
 import TermsOfService from './TermsOfService';
@@ -209,6 +210,7 @@ function App() {
         </div>
       </footer>
       )}
+      <Analytics />
     </div>
   );
 }
