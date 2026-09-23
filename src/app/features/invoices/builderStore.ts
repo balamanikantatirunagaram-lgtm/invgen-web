@@ -7,6 +7,7 @@
  * recalcs. Saves go through api/invoices (createInvoiceAtomic / update).
  */
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import {
   aggregate,
   computeLine,
@@ -335,6 +336,7 @@ export function loadEditState(inv: Invoice, clients: Client[]): EditLoaded {
 // ---------------------------------------------------------------------------
 
 interface BuilderStore extends BuilderHeader {
+  draftId: string;
   billTo: Client | null;
   shipTo: Client | null;
   sameAsBillTo: boolean;
@@ -407,28 +409,31 @@ function autoInterstate(seller: string | null, buyer: string | null): boolean | 
   return detectInterstate(seller, buyer);
 }
 
-export const useBuilder = create<BuilderStore>((set) => {
-  const init = initialRecalc();
-  return {
-    invoiceNumber: '',
-    invoiceDate: todayInput(),
-    poNumber: '',
-    poDate: '',
-    vehicleNumber: '',
-    copyType: DEFAULT_COPY_TYPE,
-    billTo: null,
-    shipTo: null,
-    sameAsBillTo: true,
-    isInterstate: false,
-    interstateAuto: true,
-    companyGstin: '',
-    companySupplyState: '',
-    isExempt: false,
-    items: init.items,
-    totals: init.totals,
-    amountInWords: init.amountInWords,
-    template: 'classic',
-    editStatus: '',
+export const useBuilder = create<BuilderStore>()(
+  persist(
+    (set) => {
+      const init = initialRecalc();
+      return {
+        draftId: newKey(),
+        invoiceNumber: '',
+        invoiceDate: todayInput(),
+        poNumber: '',
+        poDate: '',
+        vehicleNumber: '',
+        copyType: DEFAULT_COPY_TYPE,
+        billTo: null,
+        shipTo: null,
+        sameAsBillTo: true,
+        isInterstate: false,
+        interstateAuto: true,
+        companyGstin: '',
+        companySupplyState: '',
+        isExempt: false,
+        items: init.items,
+        totals: init.totals,
+        amountInWords: init.amountInWords,
+        template: 'classic',
+        editStatus: '',
 
     setHeader: (patch) => set(() => ({ ...patch })),
 
@@ -567,6 +572,7 @@ export const useBuilder = create<BuilderStore>((set) => {
     reset: () => {
       const r = initialRecalc();
       set(() => ({
+        draftId: newKey(),
         invoiceNumber: '',
         invoiceDate: todayInput(),
         poNumber: '',
@@ -589,4 +595,31 @@ export const useBuilder = create<BuilderStore>((set) => {
       }));
     },
   };
-});
+},
+{
+  name: 'invgen-builder-draft',
+  storage: createJSONStorage(() => sessionStorage),
+  partialize: (state) => ({
+    draftId: state.draftId,
+    invoiceNumber: state.invoiceNumber,
+    invoiceDate: state.invoiceDate,
+    poNumber: state.poNumber,
+    poDate: state.poDate,
+    vehicleNumber: state.vehicleNumber,
+    copyType: state.copyType,
+    billTo: state.billTo,
+    shipTo: state.shipTo,
+    sameAsBillTo: state.sameAsBillTo,
+    isInterstate: state.isInterstate,
+    interstateAuto: state.interstateAuto,
+    companyGstin: state.companyGstin,
+    companySupplyState: state.companySupplyState,
+    isExempt: state.isExempt,
+    items: state.items,
+    totals: state.totals,
+    amountInWords: state.amountInWords,
+    template: state.template,
+    editStatus: state.editStatus,
+  }),
+})
+);

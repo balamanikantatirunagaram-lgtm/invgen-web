@@ -80,6 +80,7 @@ function escapeLike(s: string): string {
 export async function createQuotationAtomic(
   ownerId: string,
   prefix: string,
+  draftId: string,
   build: (number: string) => NewQuotation,
 ): Promise<string> {
   const maxAttempts = 8;
@@ -121,7 +122,7 @@ export async function createQuotationAtomic(
       }
       const { data, error } = await getSupabase()
         .from('quotations')
-        .insert(quotationToRow(q))
+        .insert({ ...quotationToRow(q), id: draftId })
         .select('id')
         .single();
       if (error) throw error;
@@ -131,6 +132,15 @@ export async function createQuotationAtomic(
     } catch (e) {
       if (e instanceof AppError) throw e;
       if (isUniqueViolation(e)) {
+        try {
+          const { data } = await getSupabase()
+            .from('quotations')
+            .select('id')
+            .eq('id', draftId)
+            .maybeSingle();
+          if (data) return draftId;
+        } catch {}
+        
         existing.add(number);
         next++;
         continue;
@@ -217,7 +227,7 @@ export async function convertQuotationToInvoice(
     throw AppError.validation('Quotation already converted.');
   }
   // Build invoice from quotation snapshot
-  const invoiceId = await createInvoiceAtomic(ownerId, invoicePrefix, (number) => {
+  const invoiceId = await createInvoiceAtomic(ownerId, invoicePrefix, crypto.randomUUID(), (number: string) => {
     const inv: NewInvoice = {
       ownerId,
       invoiceNumber: number,

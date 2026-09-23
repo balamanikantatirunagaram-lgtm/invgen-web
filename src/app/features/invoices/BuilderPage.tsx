@@ -392,6 +392,7 @@ export default function BuilderPage() {
         const prefix = company?.invoicePrefix || 'INV-';
         savedId = await createMut.mutateAsync({
           prefix,
+          draftId: useBuilder.getState().draftId,
           build: (number) => buildNewInvoice(useBuilder.getState(), ownerId, { numberOverride: number }),
         });
         toast('Invoice saved');

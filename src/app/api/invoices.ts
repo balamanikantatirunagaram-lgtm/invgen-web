@@ -112,6 +112,7 @@ function escapeLike(s: string): string {
 export async function createInvoiceAtomic(
   ownerId: string,
   prefix: string,
+  draftId: string,
   build: (number: string) => NewInvoice,
 ): Promise<string> {
   const maxAttempts = 8;
@@ -155,7 +156,7 @@ export async function createInvoiceAtomic(
       }
       const { data, error } = await getSupabase()
         .from('invoices')
-        .insert(invoiceToRow(inv))
+        .insert({ ...invoiceToRow(inv), id: draftId })
         .select('id')
         .single();
       if (error) throw error;
@@ -166,6 +167,18 @@ export async function createInvoiceAtomic(
     } catch (e) {
       if (e instanceof AppError) throw e;
       if (isUniqueViolation(e)) {
+        // Was this an idempotency collision (retry success) or a sequence collision?
+        try {
+          const { data } = await getSupabase()
+            .from('invoices')
+            .select('id')
+            .eq('id', draftId)
+            .maybeSingle();
+          if (data) return draftId; // Idempotent recovery!
+        } catch {
+          // Ignore network errors in check; fall through to loop
+        }
+        
         existing.add(number); // someone took it → next free
         next++;
         continue;
@@ -285,7 +298,7 @@ export async function duplicateInvoice(
   prefix: string,
   source: Invoice,
 ): Promise<string> {
-  return createInvoiceAtomic(ownerId, prefix, (number) => ({
+  return createInvoiceAtomic(ownerId, prefix, crypto.randomUUID(), (number: string) => ({
     ownerId,
     invoiceNumber: number,
     invoiceDate: new Date(),

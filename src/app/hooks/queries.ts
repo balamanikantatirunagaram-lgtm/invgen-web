@@ -329,13 +329,13 @@ function invalidateInvoices(
 export function useCreateInvoice(): UseMutationResult<
   string,
   Error,
-  { prefix: string; build: (number: string) => NewInvoice }
+  { prefix: string; draftId: string; build: (number: string) => NewInvoice }
 > {
   const queryClient = useQueryClient();
   const ownerId = useOwnerId();
   return useMutation({
-    mutationFn: ({ prefix, build }) =>
-      createInvoiceAtomic(ownerId as string, prefix, build),
+    mutationFn: ({ prefix, draftId, build }) =>
+      createInvoiceAtomic(ownerId as string, prefix, draftId, build),
     onSuccess: () => invalidateInvoices(queryClient, ownerId),
   });
 }
@@ -472,13 +472,13 @@ function invalidateQuotations(
 export function useCreateQuotation(): UseMutationResult<
   string,
   Error,
-  { prefix: string; build: (number: string) => NewQuotation }
+  { prefix: string; draftId: string; build: (number: string) => NewQuotation }
 > {
   const queryClient = useQueryClient();
   const ownerId = useOwnerId();
   return useMutation({
-    mutationFn: ({ prefix, build }) =>
-      createQuotationAtomic(ownerId as string, prefix, build),
+    mutationFn: ({ prefix, draftId, build }) =>
+      createQuotationAtomic(ownerId as string, prefix, draftId, build),
     onSuccess: () => invalidateQuotations(queryClient, ownerId),
   });
 }

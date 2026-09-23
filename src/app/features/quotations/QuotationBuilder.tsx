@@ -250,6 +250,7 @@ export default function QuotationBuilder() {
         const prefix = 'QUO-';
         savedId = await createMut.mutateAsync({
           prefix,
+          draftId: useBuilder.getState().draftId,
           build: (number) => {
             const q: any = buildNewInvoice(useBuilder.getState() as any, ownerId, { numberOverride: number });
             // Map invoice fields to quotation
