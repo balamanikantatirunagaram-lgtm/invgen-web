@@ -11,7 +11,7 @@
  * IMPORTANT: never recomputes tax — renders the already-calculated
  * Invoice totals (single source = lib/gst). Pure black & white palette.
  */
-import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
+import { Canvas, Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
 import { fmtDate } from '../lib/format';
 import {
   type CompanySettings,
@@ -76,16 +76,6 @@ const styles = StyleSheet.create({
   small: { fontSize: 8 },
   tiny: { fontSize: 7.5 },
   cell: { fontSize: 7.5 },
-  // Free-tier watermark — diagonal, fixed (repeats on every page).
-  wm: {
-    position: 'absolute',
-    top: 300,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    opacity: 0.14,
-  },
-  wmText: { fontSize: 64, fontWeight: 'bold', color: INK, transform: 'rotate(-30deg)' },
 });
 
 const FLEX: number[] = [0.5, 2.4, 0.9, 0.9, 1, 1, 1, 1, 1];
@@ -467,12 +457,29 @@ function FooterSplit({
 // Document + builder
 // ---------------------------------------------------------------------------
 
-/** Free-tier watermark drawn on every page of both layout branches. */
+/**
+ * Free-tier watermark, drawn on every page of both layout branches.
+ * NOTE: View/Text styles do NOT support `transform` in @react-pdf/renderer —
+ * rotation must go through a Canvas painter (verified against v4 render API).
+ */
 function Watermark() {
   return (
-    <View style={styles.wm} fixed wrap={false}>
-      <Text style={styles.wmText}>INVGEN FREE</Text>
-    </View>
+    <Canvas
+      fixed
+      style={{ position: 'absolute', top: 0, left: 0, width: 595, height: 842 }}
+      paint={(p, w, h) => {
+        p.save()
+          .translate(w / 2, h / 2)
+          .rotate(-35)
+          .font('Helvetica-Bold')
+          .fontSize(72)
+          .fillColor('#808080')
+          .fillOpacity(0.22)
+          .text('INVGEN FREE', -250, -26)
+          .restore();
+        return null;
+      }}
+    />
   );
 }
 

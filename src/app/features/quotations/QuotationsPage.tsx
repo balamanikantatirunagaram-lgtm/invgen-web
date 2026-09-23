@@ -8,7 +8,7 @@ import { fmtDate, fmtInr } from '../../lib/format';
 import { QUOTATION_STATUSES } from '../../api/types';
 import type { Quotation, QuotationFilter } from '../../api/types';
 import { printPdf } from '../../pdf/print';
-import { Card, ConfirmDialog, EmptyState, ErrorState, LoadingState, PageHeader, PrimaryButton, StatusChip, inputCls } from '../../components/ui';
+import { Card, ConfirmDialog, EmptyState, ErrorState, LoadingState, PageHeader, PrimaryButton, StatusChip, UsageBar, inputCls } from '../../components/ui';
 import { toast } from '../../components/toastBus';
 
 export default function QuotationsPage() {
@@ -183,24 +183,12 @@ export default function QuotationsPage() {
       <PageHeader
         title="Quotations"
         subtitle="Draft → sent → converted funnel"
-        action={
-          <div className="flex items-center gap-3">
-            {quotaQuery.data != null && (
-              <span
-                className={`text-xs font-bold rounded-full px-3 py-1.5 border ${
-                  quotaQuery.data >= FREE_MONTHLY_LIMIT
-                    ? 'bg-red-50 text-red-700 border-red-200'
-                    : 'bg-surface-soft text-ink-secondary border-border-color'
-                }`}
-                title="Free quotations used this month"
-              >
-                {quotaQuery.data}/{FREE_MONTHLY_LIMIT} free this month
-              </span>
-            )}
-            <PrimaryButton onClick={() => navigate('/app/quotations/new')}>+ New Quotation</PrimaryButton>
-          </div>
-        }
+        action={<PrimaryButton onClick={() => navigate('/app/quotations/new')}>+ New Quotation</PrimaryButton>}
       />
+
+      {quotaQuery.data != null && (
+        <UsageBar used={quotaQuery.data} limit={FREE_MONTHLY_LIMIT} label="quotations" />
+      )}
 
       <Card className="p-4 mb-4 space-y-3">
         <div className="flex gap-2">

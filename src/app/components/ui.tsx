@@ -286,6 +286,40 @@ export function StatusChip({ status }: { status: string }) {
   );
 }
 
+/** Free-tier monthly usage bar (e.g. "7 of 20 free invoices used"). */
+export function UsageBar({ used, limit, label }: { used: number; limit: number; label: string }) {
+  const pct = Math.min(100, Math.round((used / limit) * 100));
+  const full = used >= limit;
+  return (
+    <div
+      className={`mb-4 rounded-2xl border px-5 py-4 ${
+        full ? 'border-red-200 bg-red-50' : 'border-border-color bg-surface'
+      }`}
+      title={`Free ${label} used this month`}
+    >
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <p className="font-bold">
+          {used} <span className="text-ink-tertiary font-semibold">of {limit} free {label} used</span>
+        </p>
+        <p className={`font-semibold ${full ? 'text-red-700' : 'text-ink-secondary'}`}>
+          {full ? 'Limit reached' : `${limit - used} left`}
+        </p>
+      </div>
+      <div className="mt-2.5 h-2 rounded-full bg-surface-soft border border-border-color overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all ${full ? 'bg-red-500' : 'bg-ink'}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      {full && (
+        <p className="mt-2 text-xs text-red-700">
+          Monthly free limit reached. Contact admin for an extension — resets on the 1st.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function PrimaryButton({
   children,
   onClick,
