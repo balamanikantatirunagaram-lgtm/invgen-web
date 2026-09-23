@@ -54,6 +54,7 @@ import {
   updateQuotation,
   type NewQuotation,
 } from '../api/quotations';
+import { countThisMonth, type QuotaKind } from '../api/usage';
 import type {
   Client,
   CompanySettings,
@@ -389,6 +390,20 @@ export function useDuplicateInvoice(): UseMutationResult<
     mutationFn: ({ prefix, source }) =>
       duplicateInvoice(ownerId as string, prefix, source),
     onSuccess: () => invalidateInvoices(queryClient, ownerId),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Free-tier quota (count of docs created this calendar month)
+// ---------------------------------------------------------------------------
+
+export function useQuota(kind: QuotaKind): UseQueryResult<number> {
+  const ownerId = useOwnerId();
+  return useQuery({
+    queryKey: ['app', ownerId, 'quota', kind],
+    queryFn: () => countThisMonth(ownerId as string, kind),
+    enabled: enabled(ownerId),
+    refetchInterval: POLL_MS,
   });
 }
 

@@ -19,6 +19,7 @@ import QuotationsPage from './app/features/quotations/QuotationsPage';
 import QuotationBuilder from './app/features/quotations/QuotationBuilder';
 import ComingSoonPage from './app/features/launch/ComingSoonPage';
 import EarlyAccessLanding from './app/features/launch/EarlyAccessLanding';
+import LimitEndedPage from './app/features/launch/LimitEndedPage';
 
 // Lazy: @react-pdf/renderer is heavy — split it out of the main bundle.
 const PdfPreviewPage = React.lazy(() => import('./app/features/invoices/PdfPreviewPage'));
@@ -150,6 +151,7 @@ function App() {
                 <Route path="/app/quotations/new" element={<QuotationBuilder />} />
                 <Route path="/app/quotations/:id/edit" element={<QuotationBuilder />} />
                 <Route path="/app/quotations/:id" element={<QuotationPdfSuspense />} />
+                <Route path="/app/limit-reached" element={<LimitEndedPage />} />
                 <Route path="/app/clients" element={<ClientsPage />} />
                 <Route path="/app/products" element={<ProductsPage />} />
                 <Route path="/app/settings" element={<SettingsHubPage />} />

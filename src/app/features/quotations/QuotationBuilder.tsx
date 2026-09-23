@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Plus, Trash2 } from 'lucide-react';
 import { useClients, useCompany, useCreateQuotation, useOwnerId, useQuotation, useUpdateQuotation } from '../../hooks/queries';
 import { useSession } from '../../stores/session';
-import { userMessage } from '../../lib/errors';
+import { userMessage, AppError } from '../../lib/errors';
 import { GST_SLABS, UNITS } from '../../lib/constants';
 import { fmtInr } from '../../lib/format';
 import { validateGstRate } from '../../lib/validators';
@@ -305,6 +305,10 @@ export default function QuotationBuilder() {
       useBuilder.getState().reset();
       navigate(preview ? `/app/quotations/${savedId}` : '/app/quotations');
     } catch (e) {
+      if (e instanceof AppError && e.kind === 'quota') {
+        navigate('/app/limit-reached', { state: { kind: 'quotations' } });
+        return;
+      }
       setSaveError(userMessage(e));
     } finally {
       setSaving(false);

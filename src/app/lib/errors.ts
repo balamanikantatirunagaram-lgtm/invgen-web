@@ -10,6 +10,7 @@ export type AppErrorKind =
   | 'notFound'
   | 'validation'
   | 'conflict'
+  | 'quota'
   | 'unknown';
 
 export class AppError extends Error {
@@ -37,6 +38,9 @@ export class AppError extends Error {
   }
   static conflict(msg: string): AppError {
     return new AppError('conflict', msg);
+  }
+  static quota(msg: string): AppError {
+    return new AppError('quota', msg);
   }
   static unknown(cause?: unknown): AppError {
     return new AppError('unknown', 'Something went wrong. Try again.', cause);

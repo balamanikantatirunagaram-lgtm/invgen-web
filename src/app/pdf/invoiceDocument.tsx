@@ -76,6 +76,16 @@ const styles = StyleSheet.create({
   small: { fontSize: 8 },
   tiny: { fontSize: 7.5 },
   cell: { fontSize: 7.5 },
+  // Free-tier watermark — diagonal, fixed (repeats on every page).
+  wm: {
+    position: 'absolute',
+    top: 300,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    opacity: 0.14,
+  },
+  wmText: { fontSize: 64, fontWeight: 'bold', color: INK, transform: 'rotate(-30deg)' },
 });
 
 const FLEX: number[] = [0.5, 2.4, 0.9, 0.9, 1, 1, 1, 1, 1];
@@ -352,8 +362,7 @@ function ItemsTable({ inv, templateDef }: { inv: Invoice; templateDef: import(".
   );
 }
 
-function SectionTitle({ text, templateDef }: { text: string; templateDef: import("../api/types").DynamicTemplate }) {
-  return (
+function SectionTitle({ text, templateDef }: { text: string; templateDef: import("../api/types").DynamicTemplate }) {  return (
     <View style={{ marginBottom: 2 }}>
       <Text style={{ ...styles.sectionTitle, letterSpacing: templateDef.base_layout === 'minimal' ? 1.5 : 0 }}>
         {text}
@@ -458,6 +467,15 @@ function FooterSplit({
 // Document + builder
 // ---------------------------------------------------------------------------
 
+/** Free-tier watermark drawn on every page of both layout branches. */
+function Watermark() {
+  return (
+    <View style={styles.wm} fixed wrap={false}>
+      <Text style={styles.wmText}>INVGEN FREE</Text>
+    </View>
+  );
+}
+
 export function InvoiceDocument({
   inv,
   company,
@@ -481,6 +499,7 @@ export function InvoiceDocument({
     return (
       <Document title={`${docTitle} ${inv.invoiceNumber}`}>
         <Page size="A4" style={{ backgroundColor: '#ffffff', padding: 40, position: 'relative' }}>
+          <Watermark />
           {/* Background decorative circles */}
           <View style={{ position: 'absolute', top: -40, right: -40, width: 140, height: 140, borderRadius: 70, backgroundColor: '#eef2ff' }} />
           <View style={{ position: 'absolute', top: -15, right: -15, width: 85, height: 85, borderRadius: 50, backgroundColor: '#667eea', opacity: 0.9 }} />
@@ -634,6 +653,7 @@ export function InvoiceDocument({
   return (
     <Document title={`${docTitle} ${inv.invoiceNumber}`}>
       <Page size="A4" style={styles.page}>
+        <Watermark />
         <PageHeader inv={inv} company={company} templateDef={templateDef} docTitle={docTitle} />
         <View style={{ height: 8 }} />
         <IssuerBlock company={company} logoSrc={logoSrc} templateDef={templateDef} />

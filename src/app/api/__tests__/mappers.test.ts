@@ -25,9 +25,9 @@ describe('formatInvoiceNumber', () => {
 });
 
 describe('templateFromId', () => {
-  test('known ids pass through, unknown falls back to classic', () => {
+  test('ids pass through (custom template uuids included); empty falls back to classic', () => {
     expect(templateFromId('modern')).toBe('modern');
-    expect(templateFromId('nope')).toBe('classic');
+    expect(templateFromId('nope')).toBe('nope');
     expect(templateFromId(undefined)).toBe('classic');
   });
 });
@@ -191,7 +191,7 @@ describe('invoice mappers', () => {
     expect(back.template).toBe('classic');
   });
 
-  test('template persists; unknown falls back to classic', () => {
+  test('template persists; custom ids survive the round-trip', () => {
     const inv = sampleInvoice({ template: 'modern' });
     const { invoiceId, createdAt, updatedAt, cancelledAt, ...rest } = inv;
     void invoiceId;
@@ -201,7 +201,7 @@ describe('invoice mappers', () => {
     const row = invoiceToRow(rest);
     expect(row['template']).toBe('modern');
     expect(invoiceFromRow({ ...row, id: 'i1' }).template).toBe('modern');
-    expect(invoiceFromRow({ id: 'i1', template: 'fancy' }).template).toBe('classic');
+    expect(invoiceFromRow({ id: 'i1', template: 'fancy' }).template).toBe('fancy');
   });
 
   test('missing items array defaults to []', () => {

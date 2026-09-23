@@ -20,6 +20,7 @@ import {
   type InvoiceFilter,
 } from './types';
 import { bumpCounterBestEffort, peekCounter } from './counters';
+import { assertQuota } from './usage';
 
 export type { InvoiceFilter };
 
@@ -115,6 +116,7 @@ export async function createInvoiceAtomic(
 ): Promise<string> {
   const maxAttempts = 8;
   const p = prefix === '' ? 'INV-' : prefix;
+  await assertQuota(ownerId, 'invoices');
 
   // Existing numbers with this prefix (single list query).
   const existing = new Set<string>();

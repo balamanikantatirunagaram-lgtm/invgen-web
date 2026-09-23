@@ -17,9 +17,11 @@ import {
   useDuplicateInvoice,
   useInvoices,
   useOwnerId,
+  useQuota,
   useSetInvoiceStatus,
 } from '../../hooks/queries';
-import { userMessage } from '../../lib/errors';
+import { AppError, userMessage } from '../../lib/errors';
+import { FREE_MONTHLY_LIMIT } from '../../api/usage';
 import { fmtDate, fmtInr, fmtQty } from '../../lib/format';
 import { INVOICE_STATUSES, type InvoiceStatus } from '../../lib/constants';
 import type { Invoice, InvoiceFilter } from '../../api/types';
@@ -65,6 +67,7 @@ export default function LedgerPage() {
     to: to === '' ? null : new Date(`${to}T23:59:59.999`),
   };
   const listQuery = useInvoices(filter, 50);
+  const quotaQuery = useQuota('invoices');
   const deleteMut = useDeleteInvoice();
   const cancelMut = useCancelInvoice();
   const paidMut = useSetInvoiceStatus();
@@ -144,7 +147,13 @@ export default function LedgerPage() {
       { prefix, source: inv },
       {
         onSuccess: () => toast(`Duplicated as draft`),
-        onError: (e) => toast(userMessage(e)),
+        onError: (e) => {
+          if (e instanceof AppError && e.kind === 'quota') {
+            navigate('/app/limit-reached', { state: { kind: 'invoices' } });
+            return;
+          }
+          toast(userMessage(e));
+        },
       },
     );
   };
@@ -180,9 +189,23 @@ export default function LedgerPage() {
         title="Invoices"
         subtitle="Ledger • search, filter, act"
         action={
-          <PrimaryButton onClick={() => navigate('/app/invoices/new')}>
-            + New Invoice
-          </PrimaryButton>
+          <div className="flex items-center gap-3">
+            {quotaQuery.data != null && (
+              <span
+                className={`text-xs font-bold rounded-full px-3 py-1.5 border ${
+                  quotaQuery.data >= FREE_MONTHLY_LIMIT
+                    ? 'bg-red-50 text-red-700 border-red-200'
+                    : 'bg-surface-soft text-ink-secondary border-border-color'
+                }`}
+                title="Free invoices used this month"
+              >
+                {quotaQuery.data}/{FREE_MONTHLY_LIMIT} free this month
+              </span>
+            )}
+            <PrimaryButton onClick={() => navigate('/app/invoices/new')}>
+              + New Invoice
+            </PrimaryButton>
+          </div>
         }
       />
 

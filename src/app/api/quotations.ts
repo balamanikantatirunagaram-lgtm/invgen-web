@@ -16,6 +16,7 @@ import {
   type QuotationStatus,
 } from './types';
 import { bumpCounterBestEffort, peekCounter } from './counters';
+import { assertQuota } from './usage';
 import { createInvoiceAtomic, type NewInvoice } from './invoices';
 
 export type { QuotationFilter };
@@ -83,6 +84,7 @@ export async function createQuotationAtomic(
 ): Promise<string> {
   const maxAttempts = 8;
   const p = prefix === '' ? 'QUO-' : prefix;
+  await assertQuota(ownerId, 'quotations');
 
   const existing = new Set<string>();
   try {

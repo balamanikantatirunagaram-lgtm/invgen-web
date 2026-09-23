@@ -12,7 +12,7 @@ import {
   useUpdateInvoice,
 } from '../../hooks/queries';
 import { useSession } from '../../stores/session';
-import { userMessage } from '../../lib/errors';
+import { userMessage, AppError } from '../../lib/errors';
 import { COPY_TYPES, GST_SLABS, UNITS } from '../../lib/constants';
 import { fmtInr } from '../../lib/format';
 import { validateGstRate } from '../../lib/validators';
@@ -403,6 +403,10 @@ export default function BuilderPage() {
       useBuilder.getState().reset();
       navigate(preview ? `/app/invoices/${savedId}` : '/app/invoices');
     } catch (e) {
+      if (e instanceof AppError && e.kind === 'quota') {
+        navigate('/app/limit-reached', { state: { kind: 'invoices' } });
+        return;
+      }
       setSaveError(userMessage(e));
     } finally {
       setSaving(false);
