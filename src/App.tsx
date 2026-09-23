@@ -2,12 +2,14 @@
 import React from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Calculator, CloudOff, Lock, CheckCircle2, IndianRupee, ArrowRight, Download, Menu, X, FileText, Check } from 'lucide-react';
+import CookiePolicy from "./CookiePolicy";
 import PrivacyPolicy from './PrivacyPolicy';
 import TermsOfService from './TermsOfService';
 import ContactPage from './app/features/contact/ContactPage';
 import RequireAuth from './app/routes/RequireAuth';
 import RequireVerified from './app/routes/RequireVerified';
 import RequireOnboarded from './app/routes/RequireOnboarded';
+import CookieBanner from "./app/components/CookieBanner";
 import AppShell from './app/routes/AppShell';
 import LoginPage from './app/features/auth/LoginPage';
 import VerifyGstPage from './app/features/auth/VerifyGstPage';
@@ -78,6 +80,7 @@ function App() {
 
   return (
     <div className="min-h-screen font-sans">
+      <CookieBanner />
       {/* Navigation */}
       {!isApp && (
       <nav className="bg-bg-warm sticky top-0 z-50 border-b border-border-color">
@@ -133,6 +136,7 @@ function App() {
         <Route path="/early-access" element={<EarlyAccessLanding />} />
         <Route path="/" element={<Home />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/cookie-policy" element={<CookiePolicy />} />
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/contact" element={<ContactPage />} />
 
@@ -228,10 +232,10 @@ function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center max-w-4xl mx-auto">
             <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold leading-[1.1] tracking-tight">
-              Premium GST Invoicing for Indian Businesses
+              Invoicing for Everyone — GST When You Need It
             </h1>
             <p className="mt-8 text-xl text-ink-secondary max-w-2xl mx-auto leading-relaxed">
-              Generate 100% compliant tax invoices in seconds. Auto-calculates CGST, SGST, IGST, and accurately formats amounts in Crores and Lakhs.
+              No GSTIN? Issue clean professional bills in seconds. Have a GSTIN? Generate 100% compliant tax invoices with auto CGST/SGST/IGST — totals in Crores and Lakhs, spelled right.
             </p>
             <div className="mt-12 flex flex-col sm:flex-row justify-center items-center gap-4">
               <Link to="/app/login" className="w-full sm:w-auto px-8 py-4 text-lg font-semibold rounded-xl text-surface bg-ink hover:bg-ink-secondary flex items-center justify-center transition-all shadow-md">

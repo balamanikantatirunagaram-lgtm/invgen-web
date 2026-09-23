@@ -137,6 +137,10 @@ export default function ContactPage() {
                   ></textarea>
                 </div>
 
+                <p className="text-xs text-ink-secondary mt-4">
+                  By submitting this form, you agree to our <a href="/privacy-policy" className="underline hover:text-ink">Privacy Policy</a>.
+                </p>
+
                 <button
                   type="submit"
                   disabled={status === 'submitting'}

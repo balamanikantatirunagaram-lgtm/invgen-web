@@ -16,12 +16,13 @@ import {
 } from '../../api/gstVerify';
 
 /**
- * Step 2/2 onboarding — mirrors mobile GstSignupScreen + exempt path:
- * GSTIN → registry lookup (Edge Function proxy, 24h cache) → result card →
- * consent → writes `profiles` + `companies` → waits for the row → dashboard.
- * "I don't have a GSTIN" switches to exempt (Bill of Supply) mode:
- * display name + state + address → same tables with gst_exempt=true.
- * Also serves exempt→verified upgrades.
+ * Step 2/2 onboarding — mirrors mobile GstSignupScreen + exempt path.
+ * Fresh signups pick first: GSTIN verify (tax invoices) or plain-bill
+ * mode (no GSTIN — "No GSTIN" card). GSTIN → registry lookup (Edge
+ * Function proxy, 24h cache) → result card → consent → writes `profiles`
+ * + `companies` → waits for the row → dashboard.
+ * Plain-bill mode: display name + state + address → same tables with
+ * gst_exempt=true. Also serves exempt→verified upgrades.
  */
 export default function VerifyGstPage() {
   const { user, profile } = useSession();
@@ -37,14 +38,14 @@ export default function VerifyGstPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Exempt (no-GSTIN) mode.
-  const [skipped, setSkipped] = useState(false);
+  const upgrading = profile?.gstExempt === true;
+  // Fresh signups choose first: GSTIN path or plain-bill path. Upgrades go straight to GSTIN.
+  const [mode, setMode] = useState<'choose' | 'gstin' | 'skip'>(upgrading ? 'gstin' : 'choose');
   const [exName, setExName] = useState('');
   const [exState, setExState] = useState('');
   const [exAddr, setExAddr] = useState('');
   const [exConsent, setExConsent] = useState(false);
   const [exErrors, setExErrors] = useState<Record<string, string>>({});
-
-  const upgrading = profile?.gstExempt === true;
 
   const doVerify = async () => {
     const v = validateGstin(gstin);
@@ -256,14 +257,54 @@ export default function VerifyGstPage() {
         )}
 
         <h1 className="text-3xl font-bold tracking-tight mb-2">
-          {upgrading ? 'Add your GSTIN' : 'Enter your GSTIN'}
+          {upgrading
+            ? 'Add your GSTIN'
+            : mode === 'choose'
+              ? 'How do you want to bill?'
+              : mode === 'gstin'
+                ? 'Enter your GSTIN'
+                : 'Continue without GSTIN'}
         </h1>
         <p className="text-ink-secondary mb-6">
           {upgrading
             ? 'Verify a GSTIN to unlock tax invoices for this workspace.'
-            : 'We fetch legal name, trade name and address from the registry to prefill your invoices. Lookups are cached for 24 hours.'}
+            : mode === 'choose'
+              ? 'Both paths are free. Pick the one that fits — you can add a GSTIN later, anytime.'
+              : mode === 'gstin'
+                ? 'We fetch legal name, trade name and address from the registry to prefill your invoices. Lookups are cached for 24 hours.'
+                : 'No GSTIN, no problem — issue clean professional bills. Add a GSTIN later to unlock tax invoices.'}
         </p>
 
+        {mode === 'choose' && !upgrading && (
+          <div className="grid sm:grid-cols-2 gap-4">
+            <button
+              onClick={() => {
+                setMode('gstin');
+                setError(null);
+              }}
+              className="text-left bg-surface border-2 border-border-color hover:border-ink rounded-3xl p-6 shadow-sm transition-colors"
+            >
+              <p className="text-lg font-bold mb-1">I have a GSTIN</p>
+              <p className="text-sm text-ink-secondary">
+                Verify it once and issue GST tax invoices with auto-split CGST / SGST / IGST.
+              </p>
+            </button>
+            <button
+              onClick={() => {
+                setMode('skip');
+                setError(null);
+              }}
+              className="text-left bg-surface border-2 border-border-color hover:border-ink rounded-3xl p-6 shadow-sm transition-colors"
+            >
+              <p className="text-lg font-bold mb-1">No GSTIN</p>
+              <p className="text-sm text-ink-secondary">
+                Continue right now and issue simple bills without GST. Free, same app.
+              </p>
+            </button>
+          </div>
+        )}
+
+        {(mode === 'gstin' || upgrading) && (
         <div className="bg-surface border border-border-color rounded-3xl p-6 sm:p-8 shadow-sm">
           <label htmlFor="gstin" className="block text-sm font-semibold mb-2">
             GSTIN *
@@ -299,20 +340,21 @@ export default function VerifyGstPage() {
             </p>
           )}
 
-          {!upgrading && !skipped && (
+          {!upgrading && (
             <button
               onClick={() => {
-                setSkipped(true);
+                setMode('choose');
                 setError(null);
               }}
               className="mt-4 w-full text-sm font-semibold text-ink-secondary hover:text-ink py-1"
             >
-              I don&apos;t have a GSTIN — continue without one
+              ← Back to options
             </button>
           )}
         </div>
+        )}
 
-        {skipped && !upgrading && (
+        {mode === 'skip' && !upgrading && (
           <div className="mt-6 bg-surface border border-border-color rounded-3xl p-6 sm:p-8 shadow-sm">
             <h2 className="text-xl font-bold mb-1">Continue without GSTIN</h2>
             <p className="text-sm text-ink-secondary mb-6">
@@ -396,10 +438,10 @@ export default function VerifyGstPage() {
               {saving ? 'Saving…' : 'Continue without GSTIN'}
             </button>
             <button
-              onClick={() => setSkipped(false)}
+              onClick={() => setMode('gstin')}
               className="mt-3 w-full text-sm font-semibold text-ink-secondary hover:text-ink"
             >
-              ← Back to GSTIN verification
+              I have a GSTIN — verify it instead
             </button>
           </div>
         )}

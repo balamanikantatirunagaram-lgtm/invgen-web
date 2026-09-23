@@ -97,6 +97,10 @@ export default function EarlyAccessLanding() {
 
           {error && <p className="text-red-600 text-sm font-semibold">{error}</p>}
 
+          <p className="text-xs text-ink-secondary text-center">
+            By joining, you agree to our <a href="/terms" className="underline hover:text-ink">Terms</a> and <a href="/privacy-policy" className="underline hover:text-ink">Privacy Policy</a>.
+          </p>
+
           <button
             type="submit"
             disabled={loading}

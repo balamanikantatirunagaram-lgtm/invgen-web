@@ -15,7 +15,7 @@ import {
   validateIfsc,
   validateMobile,
 } from '../../lib/validators';
-import { INDIAN_STATES, normalizeStateCode } from '../../lib/states';
+import { INDIAN_STATES } from '../../lib/states';
 import { pickAndEncodeLogo } from '../../lib/logo';
 import { deleteAccountAndData } from '../../api/account';
 import {
@@ -311,11 +311,8 @@ function CompanyIdentityForm() {
     if (n) e.name = n;
     const a = requiredField(addr, 'Address');
     if (a) e.addr = a;
-    const g = validateGstin(gstin, gstin.trim() !== '' || supplyState.trim() === '');
+    const g = validateGstin(gstin, false);
     if (g) e.gstin = g;
-    if (gstin.trim() === '' && normalizeStateCode(supplyState) === '') {
-      e.supplyState = 'State is required when GSTIN is empty';
-    }
     const m = validateMobile(mob);
     if (m) e.mob = m;
     const em = validateEmail(email);
@@ -403,7 +400,7 @@ function CompanyIdentityForm() {
               <textarea value={addr} onChange={(e) => setAddr(e.target.value)} rows={3} className={inputCls} />
             </Field>
             <div className="grid sm:grid-cols-2 gap-4">
-              <Field label="GSTIN" required error={errors.gstin}>
+              <Field label="GSTIN" error={errors.gstin} hint="Leave blank to bill without GST — add anytime">
                 <input
                   value={gstin}
                   onChange={(e) => setGstin(e.target.value.toUpperCase())}
@@ -414,9 +411,8 @@ function CompanyIdentityForm() {
               </Field>
               <Field
                 label="State"
-                required={gstin.trim() === ''}
                 error={errors.supplyState}
-                hint="Place of supply — required when GSTIN is empty"
+                hint="Place of supply — for GST bills"
               >
                 <select
                   value={supplyState}

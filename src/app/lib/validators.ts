@@ -65,8 +65,8 @@ export function validateQty(v: string | null | undefined): string | null {
   return null;
 }
 
-export function validateGstRate(v: number | null | undefined): string | null {
-  if (v == null || Number.isNaN(v)) return 'GST % required';
+export function validateGstRate(v: number | null | undefined, required = true): string | null {
+  if (v == null || Number.isNaN(v)) return required ? 'GST % required' : null;
   if (v < 0 || v > 28) return 'GST must be 0–28%';
   return null;
 }

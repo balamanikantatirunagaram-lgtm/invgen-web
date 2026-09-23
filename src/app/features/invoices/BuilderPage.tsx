@@ -376,11 +376,13 @@ export default function BuilderPage() {
       setSaveError(err);
       return;
     }
-    for (let i = 0; i < s.items.length; i++) {
-      const g = validateGstRate(s.items[i].gstRate);
-      if (g) {
-        setSaveError(`Row ${i + 1}: ${g}`);
-        return;
+    if (!s.isExempt) {
+      for (let i = 0; i < s.items.length; i++) {
+        const g = validateGstRate(s.items[i].gstRate);
+        if (g) {
+          setSaveError(`Row ${i + 1}: ${g}`);
+          return;
+        }
       }
     }
     setSaving(true);

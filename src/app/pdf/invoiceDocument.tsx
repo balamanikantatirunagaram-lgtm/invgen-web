@@ -79,19 +79,31 @@ const styles = StyleSheet.create({
 });
 
 const FLEX: number[] = [0.5, 2.4, 0.9, 0.9, 1, 1, 1, 1, 1];
+const FLEX_NOTAX: number[] = [0.5, 3.4, 1, 1.2, 1.2];
 
-function rowStrings(inv: Invoice): string[][] {
-  return inv.items.map((it, i) => [
-    `${i + 1}`,
-    `${it.name}\nHSN: ${it.hsnCode === '' ? '-' : it.hsnCode}`,
-    `${qtyStr(it.quantity)}\n${it.unit}`,
-    m(it.rate),
-    m(it.taxableValue),
-    `${Number.isFinite(it.cgstRate) ? it.cgstRate.toFixed(1) : '0.0'}%\n${m(it.cgstAmount)}`,
-    `${Number.isFinite(it.sgstRate) ? it.sgstRate.toFixed(1) : '0.0'}%\n${m(it.sgstAmount)}`,
-    `${Number.isFinite(it.igstRate) ? it.igstRate.toFixed(1) : '0.0'}%\n${m(it.igstAmount)}`,
-    m(it.itemTotal),
-  ]);
+/** True when the invoice carries any GST — otherwise render a clean tax-free bill. */
+export function hasTax(inv: Invoice): boolean {
+  return (inv.totalCGST || 0) + (inv.totalSGST || 0) + (inv.totalIGST || 0) > 0;
+}
+
+function rowStrings(inv: Invoice, showTax: boolean): string[][] {
+  return inv.items.map((it, i) => {
+    const base = [
+      `${i + 1}`,
+      `${it.name}\nHSN: ${it.hsnCode === '' ? '-' : it.hsnCode}`,
+      `${qtyStr(it.quantity)}\n${it.unit}`,
+      m(it.rate),
+    ];
+    if (!showTax) return [...base, m(it.itemTotal)];
+    return [
+      ...base,
+      m(it.taxableValue),
+      `${Number.isFinite(it.cgstRate) ? it.cgstRate.toFixed(1) : '0.0'}%\n${m(it.cgstAmount)}`,
+      `${Number.isFinite(it.sgstRate) ? it.sgstRate.toFixed(1) : '0.0'}%\n${m(it.sgstAmount)}`,
+      `${Number.isFinite(it.igstRate) ? it.igstRate.toFixed(1) : '0.0'}%\n${m(it.igstAmount)}`,
+      m(it.itemTotal),
+    ];
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -114,7 +126,10 @@ function PageHeader({
       <Text style={styles.badgeText}>{inv.copyType}</Text>
     </View>
   );
-  const gstin = <Text style={styles.gstinLine}>GSTIN: {company.gstin === '' ? '-' : company.gstin}</Text>;
+  const gstin =
+    company.gstin === '' ? null : (
+      <Text style={styles.gstinLine}>GSTIN: {company.gstin}</Text>
+    );
 
   if (templateDef.base_layout === 'bold') {
     return (
@@ -201,7 +216,7 @@ function IssuerBlock({
         )}
         <Text style={styles.issuerAddr}>{company.address}</Text>
         <Text style={styles.issuerContact}>
-          GSTIN: {company.gstin} - Mobile: {company.mobile} - Email: {company.email}
+          {company.gstin === '' ? '' : `GSTIN: ${company.gstin} - `}Mobile: {company.mobile} - Email: {company.email}
         </Text>
       </View>
     </View>
@@ -226,7 +241,7 @@ function Party({ title, p, templateDef }: { title: string; p: InvoiceParty; temp
       )}
       <Text style={styles.partyName}>{p.businessName}</Text>
       <Text style={styles.partyLine}>{p.address}</Text>
-      <Text style={styles.partyLine}>GSTIN: {p.gstin}</Text>
+      {p.gstin !== '' && <Text style={styles.partyLine}>GSTIN: {p.gstin}</Text>}
       {p.mobile !== '' && <Text style={styles.partyLine}>Mobile: {p.mobile}</Text>}
     </View>
   );
@@ -242,6 +257,7 @@ function Kv({ k, v }: { k: string; v: string }) {
 }
 
 function PartiesAndMeta({ inv, templateDef }: { inv: Invoice; templateDef: import("../api/types").DynamicTemplate }) {
+  const showTax = hasTax(inv);
   const meta = (
     <View>
       <Kv k="Invoice No" v={inv.invoiceNumber} />
@@ -249,7 +265,10 @@ function PartiesAndMeta({ inv, templateDef }: { inv: Invoice; templateDef: impor
       <Kv k="PO No" v={inv.poNumber === '' ? '-' : inv.poNumber} />
       <Kv k="PO Date" v={d(inv.poDate)} />
       <Kv k="Vehicle No" v={inv.vehicleNumber === '' ? '-' : inv.vehicleNumber} />
-      <Kv k="Supply" v={inv.isInterstate ? 'Inter-state (IGST)' : 'Intra-state (CGST+SGST)'} />
+      <Kv
+        k="Supply"
+        v={showTax ? (inv.isInterstate ? 'Inter-state (IGST)' : 'Intra-state (CGST+SGST)') : 'Bill of Supply (no GST)'}
+      />
     </View>
   );
   const boxed =
@@ -281,8 +300,12 @@ function PartiesAndMeta({ inv, templateDef }: { inv: Invoice; templateDef: impor
 }
 
 function ItemsTable({ inv, templateDef }: { inv: Invoice; templateDef: import("../api/types").DynamicTemplate }) {
-  const headers = ['Sl', 'Description\nHSN', 'Qty\nUnit', 'Rate', 'Taxable', 'CGST\nRt/Amt', 'SGST\nRt/Amt', 'IGST\nRt/Amt', 'Total'];
-  const rows = rowStrings(inv);
+  const showTax = hasTax(inv);
+  const headers = showTax
+    ? ['Sl', 'Description\nHSN', 'Qty\nUnit', 'Rate', 'Taxable', 'CGST\nRt/Amt', 'SGST\nRt/Amt', 'IGST\nRt/Amt', 'Total']
+    : ['Sl', 'Description\nHSN', 'Qty\nUnit', 'Rate', 'Amount'];
+  const rows = rowStrings(inv, showTax);
+  const flex = showTax ? FLEX : FLEX_NOTAX;
   const darkHeader = templateDef.base_layout === 'modern' || templateDef.base_layout === 'bold';
   const fillHeader = templateDef.base_layout !== 'minimal';
 
@@ -294,9 +317,9 @@ function ItemsTable({ inv, templateDef }: { inv: Invoice; templateDef: import(".
       ? { borderBottomWidth: 0.3, borderBottomColor: SOFT }
       : { borderRightWidth: borderWidth, borderRightColor: borderColor };
 
-  const aligns: ('center' | 'left' | 'right')[] = [
-    'center', 'left', 'center', 'right', 'right', 'right', 'right', 'right', 'right',
-  ];
+  const aligns: ('center' | 'left' | 'right')[] = showTax
+    ? ['center', 'left', 'center', 'right', 'right', 'right', 'right', 'right', 'right']
+    : ['center', 'left', 'center', 'right', 'right'];
 
   return (
     <View
@@ -321,7 +344,7 @@ function ItemsTable({ inv, templateDef }: { inv: Invoice; templateDef: import(".
         {headers.map((h, i) => (
           <View
             key={h}
-            style={{ flex: FLEX[i], padding: 4, alignItems: aligns[i] === 'center' ? 'center' : aligns[i] === 'right' ? 'flex-end' : 'flex-start' }}
+            style={{ flex: flex[i], padding: 4, alignItems: aligns[i] === 'center' ? 'center' : aligns[i] === 'right' ? 'flex-end' : 'flex-start' }}
           >
             <Text style={{ fontSize: 7.5, fontWeight: 'bold', color: darkHeader && fillHeader ? PAPER : INK, textAlign: aligns[i] }}>
               {h}
@@ -336,7 +359,7 @@ function ItemsTable({ inv, templateDef }: { inv: Invoice; templateDef: import(".
             <View
               key={i}
               style={{
-                flex: FLEX[i],
+                flex: flex[i],
                 padding: 4,
                 ...cellBorder,
                 ...(i === r.length - 1 ? { borderRightWidth: 0 } : {}),
@@ -375,6 +398,7 @@ function FooterSplit({
 }) {
   const boldGrand = templateDef.base_layout === 'bold';
   const rowBorder = templateDef.base_layout === 'minimal' ? SOFT : GREY400;
+  const showTax = hasTax(inv);
 
   const totalRow = (label: string, value: string, bold: boolean, bg?: string, fg?: string) => (
     <View
@@ -407,10 +431,11 @@ function FooterSplit({
           borderTopColor: INK,
         }}
       >
-        {totalRow('Taxable Value', m(inv.totalTaxableValue), false)}
-        {totalRow('CGST', m(inv.totalCGST), false)}
-        {totalRow('SGST', m(inv.totalSGST), false)}
-        {totalRow('IGST', m(inv.totalIGST), false)}
+        {showTax && totalRow('Taxable Value', m(inv.totalTaxableValue), false)}
+        {showTax && totalRow('CGST', m(inv.totalCGST), false)}
+        {showTax && totalRow('SGST', m(inv.totalSGST), false)}
+        {showTax && totalRow('IGST', m(inv.totalIGST), false)}
+        {!showTax && totalRow('Subtotal', m(inv.totalTaxableValue), false)}
         {totalRow('Round Off', Number.isFinite(inv.roundOff) ? inv.roundOff.toFixed(2) : '0.00', false)}
         {totalRow(
           'Grand Total',

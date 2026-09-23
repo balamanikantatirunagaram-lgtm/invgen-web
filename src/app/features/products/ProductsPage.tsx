@@ -104,7 +104,7 @@ export default function ProductsPage() {
     if (hsnErr) e.hsnCode = hsnErr;
     const rateErr = validateRate(form.rate);
     if (rateErr) e.rate = rateErr;
-    const gstErr = validateGstRate(resolvedGst);
+    const gstErr = validateGstRate(resolvedGst, false);
     if (gstErr) e.gst = gstErr;
     setErrors(e);
     if (Object.values(e).some((v) => v)) return;
@@ -297,7 +297,7 @@ export default function ProductsPage() {
                   ))}
                 </select>
               </Field>
-              <Field label="GST %" required error={errors.gst}>
+              <Field label="GST %" error={errors.gst} hint="Leave blank when plain billing">
                 <select
                   value={form.gstMode}
                   onChange={(e) => set('gstMode', e.target.value)}
@@ -323,7 +323,7 @@ export default function ProductsPage() {
               </Field>
             )}
             {form.gstMode === 'custom' && (
-              <Field label="Custom GST %" required hint="0–28%">
+              <Field label="Custom GST %" hint="0–28%">
                 <input
                   value={form.customGst}
                   onChange={(e) => set('customGst', e.target.value)}

@@ -6,8 +6,14 @@
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
+      
+      // Default to denied for GDPR compliance
+      gtag('consent', 'default', {
+        'analytics_storage': 'denied',
+        'ad_storage': 'denied'
+      });
+      
       gtag('js', new Date());
-
       gtag('config', 'G-Q53YK3MGVT');
     </script>
     <meta charset="UTF-8" />

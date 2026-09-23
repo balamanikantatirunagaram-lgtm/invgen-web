@@ -131,16 +131,16 @@ export default function AppShell() {
         </header>
 
         {profile?.gstExempt === true && !profile.gstVerified && (
-          <div className="bg-amber-100 border-b border-amber-200">
+          <div className="bg-sky-50 border-b border-sky-200">
             <div className="px-4 sm:px-6 lg:px-8 py-2.5 max-w-6xl mx-auto flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-              <p className="text-amber-900">
-                <strong>Bill of Supply mode</strong> — you&apos;re issuing bills without GST.
+              <p className="text-sky-900">
+                <strong>Simple-bill mode</strong> — no GST on your bills. Works for anyone, anywhere.
               </p>
               <Link
                 to="/app/verify-gst"
-                className="font-bold text-amber-900 underline hover:text-ink"
+                className="font-bold text-sky-900 underline hover:text-ink"
               >
-                Add GSTIN to unlock tax invoices →
+                Add GSTIN for tax invoices →
               </Link>
             </div>
           </div>
