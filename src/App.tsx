@@ -65,10 +65,13 @@ function App() {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const location = useLocation();
 
-  // Scroll to top on route change
+  // Scroll to top + track SPA page views (index.html tag only fires on first load)
   React.useEffect(() => {
     window.scrollTo(0, 0);
-  }, [location.pathname]);
+    (window as any).gtag?.('config', 'G-Q53YK3MGVT', {
+      page_path: location.pathname + location.search,
+    });
+  }, [location.pathname, location.search]);
 
   // Landing chrome only outside the authenticated app (/app/* has its own shell).
   const isApp = location.pathname.startsWith('/app');
