@@ -44,7 +44,8 @@ export interface DashboardStats {
 }
 
 export function computeDashboard(all: Invoice[], month: MonthKey): DashboardStats {
-  const visible = all.filter((i) => i.status !== 'cancelled');
+  // Revenue/outstanding count only issued+paid — drafts & cancelled excluded (H2 fix)
+  const visible = all.filter((i) => i.status !== 'cancelled' && i.status !== 'draft');
   const prev = shiftMonth(month, -1);
   const inMonth = visible.filter((i) => {
     const k = monthKeyOf(i.invoiceDate);
@@ -60,7 +61,7 @@ export function computeDashboard(all: Invoice[], month: MonthKey): DashboardStat
   const prevRevenue = sum(inPrev);
   const deltaPct = prevRevenue > 0 ? ((revenue - prevRevenue) / prevRevenue) * 100 : null;
 
-  const open = visible.filter((i) => i.status === 'issued' || i.status === 'draft');
+  const open = visible.filter((i) => i.status === 'issued');
   const paidList = visible.filter((i) => i.status === 'paid');
 
   const taxMonth = inMonth.reduce(
@@ -84,8 +85,8 @@ export function computeDashboard(all: Invoice[], month: MonthKey): DashboardStat
     deltaPct,
     outstanding: sum(open),
     paid: sum(paidList),
-    overdueCount: visible.filter((i) => i.status === 'issued').length,
-    unpaidCount: visible.filter((i) => i.status !== 'paid').length,
+    overdueCount: open.length,
+    unpaidCount: open.length,
     paidCount: paidList.length,
     cancelledCount: all.filter((i) => i.status === 'cancelled').length,
     taxMonth,

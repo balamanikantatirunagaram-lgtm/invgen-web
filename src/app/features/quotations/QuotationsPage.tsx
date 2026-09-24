@@ -8,7 +8,7 @@ import { fmtDate, fmtInr } from '../../lib/format';
 import { QUOTATION_STATUSES } from '../../api/types';
 import type { Quotation, QuotationFilter } from '../../api/types';
 import { printPdf } from '../../pdf/print';
-import { Card, ConfirmDialog, EmptyState, ErrorState, LoadingState, PageHeader, PrimaryButton, StatusChip, UsageBar, inputCls } from '../../components/ui';
+import { Card, ConfirmDialog, EmptyState, ErrorState, LoadingState, Modal, PageHeader, PrimaryButton, StatusChip, UsageBar, inputCls } from '../../components/ui';
 import { toast } from '../../components/toastBus';
 
 export default function QuotationsPage() {
@@ -96,6 +96,10 @@ export default function QuotationsPage() {
     }
   };
 
+  const [shareFallback, setShareFallback] = useState<{ filename: string; url: string } | null>(null);
+  const doMarkSent = (q: Quotation) => {
+    statusMut.mutate({ id: q.quotationId, status: 'sent' as never }, { onSuccess: () => toast(`${q.quotationNumber} marked sent`), onError: (e) => toast(userMessage(e)) });
+  };
   const doShare = async (q: Quotation) => {
     const company = needCompany();
     if (!company || !ownerId) return;
@@ -134,8 +138,14 @@ export default function QuotationsPage() {
       const file = new File([bytes.slice()], filename, { type: 'application/pdf' });
       if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file], title: filename });
+        if (q.status === 'draft') statusMut.mutate({ id: q.quotationId, status: 'sent' as never });
       } else {
-        toast('Native sharing is not supported on this device/browser.');
+        const blob = new Blob([bytes.slice()], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+        setShareFallback({ filename, url });
+        toast('PDF downloaded — use WhatsApp or Email to share');
+        if (q.status === 'draft') statusMut.mutate({ id: q.quotationId, status: 'sent' as never });
       }
     } catch (e) {
       toast(userMessage(e));
@@ -300,6 +310,9 @@ export default function QuotationsPage() {
                             </button>
                           )}
                           {q.status === 'draft' && (
+                            <button onClick={() => doMarkSent(q)} disabled={actionBusy} className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-amber-100 text-amber-800 disabled:opacity-50">Sent</button>
+                          )}
+                          {q.status === 'draft' && (
                             <button onClick={() => setPending(q)} className="p-2 rounded-lg text-red-700 hover:bg-red-50" title="Delete draft">
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -325,6 +338,17 @@ export default function QuotationsPage() {
           busy={deleteMut.isPending}
           danger
         />
+      )}
+      {shareFallback && (
+        <Modal title="Share PDF" onClose={() => setShareFallback(null)} footer={<button onClick={() => setShareFallback(null)} className="px-5 py-2.5 rounded-xl border border-border-strong font-semibold">Close</button>}>
+          <div className="space-y-3">
+            <p className="text-sm text-ink-secondary">{shareFallback.filename} downloaded.</p>
+            <button onClick={() => { navigator.clipboard.writeText(shareFallback.filename); toast('Filename copied'); }} className="w-full py-2.5 rounded-xl border border-border-strong font-semibold">Copy filename</button>
+            <a href={`https://wa.me/?text=${encodeURIComponent(`Quotation ${shareFallback.filename}`)}`} target="_blank" rel="noreferrer" className="block w-full text-center py-2.5 rounded-xl bg-green-600 text-white font-semibold">Share via WhatsApp</a>
+            <a href={`mailto:?subject=${encodeURIComponent(`Quotation ${shareFallback.filename}`)}`} className="block w-full text-center py-2.5 rounded-xl border border-border-strong font-semibold">Share via Email</a>
+            <a href={shareFallback.url} download={shareFallback.filename} className="block w-full text-center py-2.5 rounded-xl bg-ink text-surface font-semibold">Download again</a>
+          </div>
+        </Modal>
       )}
     </div>
   );

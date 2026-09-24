@@ -199,11 +199,11 @@ function invalidateClients(queryClient: ReturnType<typeof useQueryClient>, owner
   void queryClient.invalidateQueries({ queryKey: ['app', ownerId, 'clients'] });
 }
 
-export function useCreateClient(): UseMutationResult<string, Error, Omit<Client, 'id' | 'ownerId'>> {
+export function useCreateClient(): UseMutationResult<string, Error, { client: Omit<Client, 'id' | 'ownerId'>, draftId: string }> {
   const queryClient = useQueryClient();
   const ownerId = useOwnerId();
   return useMutation({
-    mutationFn: (c) => createClient({ ...c, ownerId: ownerId as string }),
+    mutationFn: ({ client, draftId }) => createClient({ ...client, ownerId: ownerId as string }, draftId),
     onSuccess: () => invalidateClients(queryClient, ownerId),
   });
 }
@@ -250,12 +250,12 @@ function invalidateProducts(
 export function useCreateProduct(): UseMutationResult<
   string,
   Error,
-  Omit<Product, 'id' | 'ownerId'>
+  { product: Omit<Product, 'id' | 'ownerId'>, draftId: string }
 > {
   const queryClient = useQueryClient();
   const ownerId = useOwnerId();
   return useMutation({
-    mutationFn: (p) => createProduct({ ...p, ownerId: ownerId as string }),
+    mutationFn: ({ product, draftId }) => createProduct({ ...product, ownerId: ownerId as string }, draftId),
     onSuccess: () => invalidateProducts(queryClient, ownerId),
   });
 }

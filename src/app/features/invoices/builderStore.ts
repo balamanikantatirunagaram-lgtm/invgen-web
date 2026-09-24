@@ -74,7 +74,8 @@ export function emptyItem(): BuilderItem {
 }
 
 export function effectiveUnit(it: Pick<BuilderItem, 'unit' | 'customUnit'>): string {
-  return it.unit === 'Custom' && it.customUnit !== '' ? it.customUnit : it.unit;
+  if (it.unit === 'Custom') return it.customUnit.trim() !== '' ? it.customUnit.trim() : 'Nos';
+  return it.unit.trim() !== '' ? it.unit : 'Nos';
 }
 
 export interface BuilderHeader {

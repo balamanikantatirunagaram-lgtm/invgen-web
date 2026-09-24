@@ -76,11 +76,13 @@ export default function ProductsPage() {
 
   const [form, setForm] = useState<ProductForm>(EMPTY_FORM);
   const [errors, setErrors] = useState<Partial<Record<'name' | 'hsnCode' | 'rate' | 'gst', string>>>({});
+  const [draftId, setDraftId] = useState('');
 
   const openAdd = () => {
     setEditing(null);
     setForm(EMPTY_FORM);
     setErrors({});
+    setDraftId(typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `p-${Date.now()}`);
     setModalOpen(true);
   };
 
@@ -132,7 +134,7 @@ export default function ProductsPage() {
         },
       );
     } else {
-      createMut.mutate(payload, {
+      createMut.mutate({ product: payload, draftId }, {
         onSuccess: () => {
           toast('Product added');
           setModalOpen(false);
@@ -297,7 +299,7 @@ export default function ProductsPage() {
                   ))}
                 </select>
               </Field>
-              <Field label="GST %" error={errors.gst} hint="Leave blank when plain billing">
+              <Field label="GST %" error={errors.gst} hint="Hidden in plain-billing mode; select slab for GST invoices">
                 <select
                   value={form.gstMode}
                   onChange={(e) => set('gstMode', e.target.value)}

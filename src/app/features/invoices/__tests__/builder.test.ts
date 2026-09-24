@@ -66,7 +66,7 @@ describe('effectiveUnit', () => {
   test('custom fallback', () => {
     expect(effectiveUnit({ unit: 'Nos', customUnit: '' })).toBe('Nos');
     expect(effectiveUnit({ unit: 'Custom', customUnit: 'Pair' })).toBe('Pair');
-    expect(effectiveUnit({ unit: 'Custom', customUnit: '' })).toBe('Custom');
+    expect(effectiveUnit({ unit: 'Custom', customUnit: '' })).toBe('Nos');
   });
 });
 

@@ -36,6 +36,7 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
+  Modal,
   PageHeader,
   PrimaryButton,
   StatusChip,
@@ -111,6 +112,7 @@ export default function LedgerPage() {
     }
   };
 
+  const [shareFallback, setShareFallback] = useState<{ filename: string; url: string } | null>(null);
   const doShare = async (inv: Invoice) => {
     const company = needCompany();
     if (!company || !ownerId) return;
@@ -126,7 +128,15 @@ export default function LedgerPage() {
       if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file], title: filename });
       } else {
-        toast('Native sharing is not supported on this device/browser.');
+        // Desktop fallback: download + share dialog (H4)
+        const blob = new Blob([bytes.slice()], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        setShareFallback({ filename, url });
+        toast('PDF downloaded — use WhatsApp or Email to share');
       }
     } catch (e) {
       toast(userMessage(e));
@@ -136,6 +146,8 @@ export default function LedgerPage() {
   };
 
   const doMarkPaid = (inv: Invoice) => {
+    const ok = window.confirm(`Mark ${inv.invoiceNumber} as paid? You can undo via "Mark unpaid".`);
+    if (!ok) return;
     paidMut.mutate(
       { id: inv.invoiceId, status: 'paid' },
       {
@@ -143,6 +155,12 @@ export default function LedgerPage() {
         onError: (e) => toast(userMessage(e)),
       },
     );
+  };
+  const doMarkUnpaid = (inv: Invoice) => {
+    paidMut.mutate({ id: inv.invoiceId, status: 'issued' }, { onSuccess: () => toast(`${inv.invoiceNumber} marked unpaid`), onError: (e) => toast(userMessage(e)) });
+  };
+  const doIssue = (inv: Invoice) => {
+    paidMut.mutate({ id: inv.invoiceId, status: 'issued' }, { onSuccess: () => toast(`${inv.invoiceNumber} issued`), onError: (e) => toast(userMessage(e)) });
   };
 
   const doDuplicate = (inv: Invoice) => {
@@ -370,6 +388,11 @@ export default function LedgerPage() {
                           >
                             <Copy className="h-4 w-4" />
                           </button>
+                          {inv.status === 'draft' && (
+                            <button onClick={() => doIssue(inv)} disabled={actionBusy} className="px-2.5 py-1.5 ml-1 rounded-lg text-xs font-bold bg-ink text-surface hover:bg-ink-secondary disabled:opacity-50">
+                              Issue
+                            </button>
+                          )}
                           {inv.status === 'issued' && (
                             <button
                               onClick={() => doMarkPaid(inv)}
@@ -377,6 +400,11 @@ export default function LedgerPage() {
                               className="px-2.5 py-1.5 ml-1 rounded-lg text-xs font-bold text-success bg-success-bg hover:brightness-95 disabled:opacity-50"
                             >
                               Paid
+                            </button>
+                          )}
+                          {inv.status === 'paid' && (
+                            <button onClick={() => doMarkUnpaid(inv)} disabled={actionBusy} className="px-2.5 py-1.5 ml-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-800 disabled:opacity-50">
+                              Unpaid
                             </button>
                           )}
                           {inv.status === 'draft' ? (
@@ -425,13 +453,24 @@ export default function LedgerPage() {
       {pending?.kind === 'cancel' && (
         <ConfirmDialog
           title="Cancel invoice?"
-          message={`${pending.inv.invoiceNumber} • ${fmtInr(pending.inv.grandTotal)}. The sequential record is kept for GST audit, but it can no longer be edited or deleted.`}
+          message={`${pending.inv.invoiceNumber} • ${fmtInr(pending.inv.grandTotal)}. The sequential record is kept for GST audit, but it can no longer be edited or deleted. It will not count toward your free plan.`}
           confirmLabel="Cancel invoice"
           onConfirm={doConfirmPending}
           onCancel={() => setPending(null)}
           busy={cancelMut.isPending}
           danger
         />
+      )}
+      {shareFallback && (
+        <Modal title="Share PDF" onClose={() => setShareFallback(null)} footer={<button onClick={() => setShareFallback(null)} className="px-5 py-2.5 rounded-xl border border-border-strong font-semibold">Close</button>}>
+          <div className="space-y-3">
+            <p className="text-sm text-ink-secondary">{shareFallback.filename} downloaded. Share it:</p>
+            <button onClick={() => { navigator.clipboard.writeText(shareFallback.filename); toast('Filename copied'); }} className="w-full py-2.5 rounded-xl border border-border-strong font-semibold">Copy filename</button>
+            <a href={`https://wa.me/?text=${encodeURIComponent(`Invoice ${shareFallback.filename}`)}`} target="_blank" rel="noreferrer" className="block w-full text-center py-2.5 rounded-xl bg-green-600 text-white font-semibold">Share via WhatsApp</a>
+            <a href={`mailto:?subject=${encodeURIComponent(`Invoice ${shareFallback.filename}`)}&body=${encodeURIComponent(`Please find attached ${shareFallback.filename}`)}`} className="block w-full text-center py-2.5 rounded-xl border border-border-strong font-semibold">Share via Email</a>
+            <a href={shareFallback.url} download={shareFallback.filename} className="block w-full text-center py-2.5 rounded-xl bg-ink text-surface font-semibold">Download again</a>
+          </div>
+        </Modal>
       )}
     </div>
   );

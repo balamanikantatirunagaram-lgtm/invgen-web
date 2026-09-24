@@ -136,16 +136,25 @@ export async function createInvoiceAtomic(
     throw mapSupabase(e);
   }
 
-  // Advisory starting point from the counter (0 when absent).
-  let start = 0;
-  try {
-    start = await peekCounter(ownerId);
-  } catch {
-    start = 0; // counter read failure must not block creation
+  // Next number: max existing for this prefix +1 (per-prefix sequence, M5/H6).
+  // Falls back to peekCounter only when prefix has no existing numbers.
+  let next: number;
+  if (existing.size > 0) {
+    let max = 0;
+    for (const n of existing) {
+      const num = parseInt(n.slice(p.length), 10);
+      if (Number.isFinite(num) && num > max) max = num;
+    }
+    next = max + 1;
+    while (existing.has(formatInvoiceNumber(p, next))) next++;
+  } else {
+    let start = 0;
+    try { start = await peekCounter(ownerId); } catch { start = 0; }
+    next = start + 1;
+    while (existing.has(formatInvoiceNumber(p, next))) next++;
+    // Ensure we don't reuse 1 when counter is 0 but we want 1
+    if (next < 1) next = 1;
   }
-
-  let next = start + 1;
-  while (existing.has(formatInvoiceNumber(p, next))) next++;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const number = formatInvoiceNumber(p, next);

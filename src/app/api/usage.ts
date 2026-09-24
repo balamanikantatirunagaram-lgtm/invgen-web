@@ -17,11 +17,13 @@ function monthStartIso(): string {
 
 export async function countThisMonth(ownerId: string, kind: QuotaKind): Promise<number> {
   try {
-    const { count, error } = await getSupabase()
+    let q: any = getSupabase()
       .from(kind)
       .select('id', { count: 'exact', head: true })
       .eq('owner_id', ownerId)
       .gte('created_at', monthStartIso());
+    if (typeof q.neq === 'function') q = q.neq('status', 'cancelled');
+    const { count, error } = await q;
     if (error) throw error;
     return count ?? 0;
   } catch (e) {

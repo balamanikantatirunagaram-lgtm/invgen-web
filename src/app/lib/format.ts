@@ -29,6 +29,26 @@ export function fmtDate(d: Date): string {
   return `${pad2(d.getDate())}-${pad2(d.getMonth() + 1)}-${d.getFullYear()}`;
 }
 
+/** Parse a decimal string typed by user: keeps dot, strips commas/₹/spaces.
+ *  Never strips trailing zeros or the decimal point. Returns NaN on empty.
+ *  Examples: "10.50"→10.5, "2.0"→2, "1,250.00"→1250, "₹ 99.60"→99.6
+ */
+export function parseDecimal(raw: string): number {
+  if (raw.trim() === '') return NaN;
+  // Keep digits, single dot, minus. Strip commas, currency, spaces, etc.
+  let s = raw.trim().replace(/[₹,\s]/g, '');
+  // Keep only first dot, remove extras
+  const firstDot = s.indexOf('.');
+  if (firstDot !== -1) {
+    s = s.slice(0, firstDot + 1) + s.slice(firstDot + 1).replace(/\./g, '');
+  }
+  // Strip leading + but keep -
+  s = s.replace(/^\+/, '');
+  if (s === '' || s === '.' || s === '-' || s === '-.') return NaN;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : NaN;
+}
+
 /** Strict parse of dd-MM-yyyy. Throws on invalid input. */
 export function parseDmy(s: string): Date {
   const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(s.trim());

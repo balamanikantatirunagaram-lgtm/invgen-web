@@ -109,7 +109,7 @@ export default function WelcomeWizard() {
         companyName: existing?.companyName ?? displayName,
         address: existing?.address ?? '',
         gstin: existing?.gstin ?? gstin.trim().toUpperCase(),
-        supplyState: isExempt ? normalizeStateCode(supplyState) : (existing?.supplyState ?? ''),
+        supplyState: normalizeStateCode(supplyState) !== '' ? normalizeStateCode(supplyState) : (existing?.supplyState ?? ''),
         mobile: existing?.mobile ?? mobile.trim(),
         email: existing?.email ?? user?.email ?? '',
         bankDetails: existing?.bankDetails ?? { bankName: '', accountNumber: '', ifscCode: '', branchName: '' },
@@ -152,14 +152,17 @@ export default function WelcomeWizard() {
       }
       try {
         await createClient.mutateAsync({
-          businessName: clientName.trim(),
-          tradeName: '',
-          gstin: clientGstin.trim().toUpperCase(),
-          supplyState: normalizeStateCode(clientState),
-          billingAddress: '',
-          shippingAddress: '',
-          mobile: '',
-          email: '',
+          client: {
+            businessName: clientName.trim(),
+            tradeName: '',
+            gstin: clientGstin.trim().toUpperCase(),
+            supplyState: normalizeStateCode(clientState),
+            billingAddress: '',
+            shippingAddress: '',
+            mobile: '',
+            email: '',
+          },
+          draftId: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `w-${Date.now()}`
         });
         toast('First client added');
       } catch (e) {
@@ -176,11 +179,14 @@ export default function WelcomeWizard() {
       }
       try {
         await createProduct.mutateAsync({
-          name: productName.trim(),
-          hsnCode: '',
-          defaultUnit: productUnit,
-          rate,
-          gstRate: Number(productGst),
+          product: {
+            name: productName.trim(),
+            hsnCode: '',
+            defaultUnit: productUnit,
+            rate,
+            gstRate: Number(productGst),
+          },
+          draftId: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `wp-${Date.now()}`
         });
         toast('First product added');
       } catch (e) {
@@ -203,13 +209,15 @@ export default function WelcomeWizard() {
             <img src="/logo.png" alt="InvGen" className="h-8 w-8 object-contain rounded-lg border border-border-color" />
             <span className="ml-3 text-xl font-bold tracking-tight">InvGen</span>
           </Link>
-          <button
-            onClick={() => markOnboarded(true)}
-            disabled={saving}
-            className="text-sm font-medium text-ink-secondary hover:text-ink disabled:opacity-50"
-          >
-            Skip for now
-          </button>
+          {step !== 4 && (
+            <button
+              onClick={() => markOnboarded(true)}
+              disabled={saving}
+              className="text-sm font-medium text-ink-secondary hover:text-ink disabled:opacity-50"
+            >
+              Skip for now
+            </button>
+          )}
         </div>
         <div className="h-1 bg-surface-soft">
           <div className="h-full bg-ink transition-all duration-500" style={{ width: `${progress}%` }} />

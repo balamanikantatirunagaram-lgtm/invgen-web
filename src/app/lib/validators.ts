@@ -51,6 +51,13 @@ export function validateIfsc(v: string | null | undefined, required = false): st
   return null;
 }
 
+export function validateAccountNumber(v: string | null | undefined): string | null {
+  const s = (v ?? '').trim();
+  if (s === '') return null;
+  if (!/^\d{9,18}$/.test(s)) return 'Account number must be 9–18 digits';
+  return null;
+}
+
 export function validateRate(v: string | null | undefined): string | null {
   if (v == null || v.trim() === '') return 'Rate required';
   const d = Number(v.trim());

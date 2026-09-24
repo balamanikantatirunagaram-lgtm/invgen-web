@@ -14,7 +14,7 @@ import {
 import { useSession } from '../../stores/session';
 import { userMessage, AppError } from '../../lib/errors';
 import { COPY_TYPES, GST_SLABS, UNITS } from '../../lib/constants';
-import { fmtInr } from '../../lib/format';
+import { fmtInr, parseDecimal } from '../../lib/format';
 import { validateGstRate } from '../../lib/validators';
 import { formatInvoiceNumber,  type Client, type InvoiceTemplate } from '../../api/types';
 import { peekCounter } from '../../api/counters';
@@ -42,9 +42,9 @@ function money(v: number): string {
   return Number.isFinite(v) ? fmtInr(v) : '—';
 }
 
-/** Compact inputs for dense table cells (room for values like "18" / "Nos"). */
+/** Compact inputs for dense table cells */
 const cellCls =
-  'w-full rounded-xl border border-border-strong bg-surface px-2.5 py-2 text-sm outline-none focus:border-ink transition-colors placeholder:text-ink-tertiary';
+  'w-full rounded-xl border border-border-strong bg-surface px-2.5 py-2 text-sm outline-none focus:border-ink transition-colors placeholder:text-ink-tertiary min-w-[72px]';
 
 // ---------------------------------------------------------------------------
 // Searchable client picker
@@ -151,9 +151,8 @@ function ClientPicker({
 // ---------------------------------------------------------------------------
 
 function numInput(v: string, fallback: number): number {
-  if (v.trim() === '') return NaN;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : fallback;
+  const n = parseDecimal(v);
+  return Number.isFinite(n) ? n : (v.trim() === '' ? NaN : fallback);
 }
 
 function ItemRow({
@@ -251,24 +250,24 @@ function ItemRow({
           aria-label={`Row ${index + 1} rate`}
         />
       </td>
-      <td className="px-2 py-2.5 w-[104px]">
-        <input
-          value={Number.isFinite(item.gstRate) ? String(item.gstRate) : ''}
-          onChange={(e) => patch({ gstRate: numInput(e.target.value, NaN) })}
-          inputMode="decimal"
-          list={`gst-slabs-${item.key}`}
-          placeholder="GST %"
-          disabled={isExempt}
-          title={isExempt ? 'Bill of Supply — no GST charged' : undefined}
-          className={`${cellCls} disabled:opacity-60`}
-          aria-label={`Row ${index + 1} GST percent`}
-        />
-        <datalist id={`gst-slabs-${item.key}`}>
-          {GST_SLABS.map((g) => (
-            <option key={g} value={g} />
-          ))}
-        </datalist>
-      </td>
+      {!isExempt && (
+        <td className="px-2 py-2.5 w-[104px]">
+          <input
+            value={Number.isFinite(item.gstRate) ? String(item.gstRate) : ''}
+            onChange={(e) => patch({ gstRate: numInput(e.target.value, NaN) })}
+            inputMode="decimal"
+            list={`gst-slabs-${item.key}`}
+            placeholder="GST %"
+            className={cellCls}
+            aria-label={`Row ${index + 1} GST percent`}
+          />
+          <datalist id={`gst-slabs-${item.key}`}>
+            {GST_SLABS.map((g) => (
+              <option key={g} value={g} />
+            ))}
+          </datalist>
+        </td>
+      )}
       <td className="px-2 py-2.5 text-sm text-right whitespace-nowrap">
         <p className="font-semibold">{money(item.taxableValue)}</p>
         <p className="text-xs text-ink-tertiary">
@@ -364,7 +363,7 @@ export default function BuilderPage() {
 
   const cancelled = isEdit && s.editStatus === 'cancelled';
 
-  const doSave = async (preview: boolean) => {
+  const doSave = async (preview: boolean, draftOverride?: boolean) => {
     if (saving || !ownerId) return;
     if (cancelled) {
       toast('Cancelled invoices cannot be saved.');
@@ -374,6 +373,8 @@ export default function BuilderPage() {
     const err = validateBuilder(s, isEdit);
     if (err) {
       setSaveError(err);
+      // Scroll to error
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
     if (!s.isExempt) {
@@ -390,14 +391,14 @@ export default function BuilderPage() {
       let savedId: string;
       if (!isEdit) {
         const prefix = company?.invoicePrefix || 'INV-';
+        const wantDraft = draftOverride === true;
         savedId = await createMut.mutateAsync({
           prefix,
           draftId: useBuilder.getState().draftId,
-          build: (number) => buildNewInvoice(useBuilder.getState(), ownerId, { numberOverride: number }),
+          build: (number) => buildNewInvoice(useBuilder.getState(), ownerId, { numberOverride: number, status: wantDraft ? 'draft' : 'issued' }),
         });
-        toast('Invoice saved');
+        toast(wantDraft ? 'Draft saved' : 'Invoice issued');
       } else {
-        // Preserve existing status (mobile resets to issued; web keeps paid/draft).
         const inv = buildNewInvoice(useBuilder.getState(), ownerId, { status: s.editStatus || 'issued' });
         await updateMut.mutateAsync({ id: editId as string, invoice: inv });
         savedId = editId as string;
@@ -414,6 +415,19 @@ export default function BuilderPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const doIssue = async () => {
+    if (!isEdit || !editId || s.editStatus !== 'draft') return;
+    setSaving(true);
+    try {
+      const { setInvoiceStatus } = await import('../../api/invoices');
+      await setInvoiceStatus(editId, 'issued');
+      toast('Invoice issued');
+      navigate(`/app/invoices/${editId}`);
+    } catch (e) {
+      toast(userMessage(e));
+    } finally { setSaving(false); }
   };
 
   const isDirty =
@@ -559,10 +573,10 @@ export default function BuilderPage() {
             </button>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[620px]">
+            <table className="w-full min-w-[520px] sm:min-w-[620px]">
               <thead>
                 <tr className="border-b border-border-color bg-surface-soft/60 text-left">
-                  {['#', 'Product', 'Qty / Unit', 'Rate', 'GST %', 'Tax / Total', ''].map((h) => (
+                  {(s.isExempt ? ['#', 'Product', 'Qty / Unit', 'Rate', 'Total', ''] : ['#', 'Product', 'Qty / Unit', 'Rate', 'GST %', 'Tax / Total', '']).map((h) => (
                     <th key={h} className="px-2 py-2.5 text-xs font-bold uppercase tracking-wider text-ink-tertiary">
                       {h}
                     </th>
@@ -664,12 +678,12 @@ export default function BuilderPage() {
                     </div>
                   </>
                 )}
-                <div className="flex justify-between">
-                  <dt className="text-ink-secondary">Round off</dt>
-                  <dd className="font-semibold">
-                    {Number.isFinite(t.roundOff) ? (t.roundOff >= 0 ? '+' : '') + t.roundOff.toFixed(2) : '—'}
-                  </dd>
-                </div>
+                {Number.isFinite(t.roundOff) && Math.abs(t.roundOff) >= 0.005 && (
+                  <div className="flex justify-between">
+                    <dt className="text-ink-secondary">Round off</dt>
+                    <dd className="font-semibold">{(t.roundOff >= 0 ? '+' : '') + t.roundOff.toFixed(2)}</dd>
+                  </div>
+                )}
                 <div className="border-t border-border-color pt-3 flex justify-between items-baseline">
                   <dt className="font-bold">Grand total</dt>
                   <dd className="text-2xl font-bold">{money(t.grandTotal)}</dd>
@@ -680,21 +694,31 @@ export default function BuilderPage() {
               </p>
             </Card>
 
+            {isEdit && s.editStatus === 'draft' && (
+              <button onClick={doIssue} disabled={saving} className="w-full py-3.5 rounded-xl bg-success text-white font-bold hover:brightness-95 disabled:opacity-60 mb-2">
+                Issue Invoice
+              </button>
+            )}
             <div className="grid grid-cols-2 2xl:grid-cols-1 gap-2">
-              <button
-                onClick={() => doSave(false)}
-                disabled={saving || cancelled}
-                className="py-3.5 rounded-xl bg-ink text-surface font-bold hover:bg-ink-secondary transition-colors disabled:opacity-60"
-              >
-                {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Save Invoice'}
-              </button>
-              <button
-                onClick={() => doSave(true)}
-                disabled={saving || cancelled}
-                className="py-3.5 rounded-xl border border-border-strong font-bold hover:bg-surface transition-colors disabled:opacity-60 bg-surface"
-              >
-                {saving ? 'Saving…' : 'Save & Preview PDF'}
-              </button>
+              {!isEdit ? (
+                <>
+                  <button onClick={() => doSave(false, true)} disabled={saving || cancelled} className="py-3.5 rounded-xl border border-border-strong font-bold hover:bg-surface disabled:opacity-60 bg-surface">
+                    {saving ? 'Saving…' : 'Save as Draft'}
+                  </button>
+                  <button onClick={() => doSave(false, false)} disabled={saving || cancelled} className="py-3.5 rounded-xl bg-ink text-surface font-bold hover:bg-ink-secondary disabled:opacity-60">
+                    {saving ? 'Saving…' : 'Save & Issue'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button onClick={() => doSave(false)} disabled={saving || cancelled} className="py-3.5 rounded-xl bg-ink text-surface font-bold hover:bg-ink-secondary disabled:opacity-60">
+                    {saving ? 'Saving…' : 'Save Changes'}
+                  </button>
+                  <button onClick={() => doSave(true)} disabled={saving || cancelled} className="py-3.5 rounded-xl border border-border-strong font-bold hover:bg-surface disabled:opacity-60 bg-surface">
+                    {saving ? 'Saving…' : 'Save & Preview PDF'}
+                  </button>
+                </>
+              )}
             </div>
             <button
               onClick={doReset}

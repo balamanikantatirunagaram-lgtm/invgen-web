@@ -202,6 +202,11 @@ function IssuerBlock({
   templateDef: import("../api/types").DynamicTemplate;
 }) {
   const isModern = templateDef.base_layout === 'modern';
+  const contactParts: string[] = [];
+  if (company.gstin !== '') contactParts.push(`GSTIN: ${company.gstin}`);
+  if (company.mobile !== '') contactParts.push(`Mobile: ${company.mobile}`);
+  if (company.email !== '') contactParts.push(`Email: ${company.email}`);
+  const contactLine = contactParts.join(' - ');
   const row = (
     <View style={{ flexDirection: 'row' }}>
       {logoSrc && (
@@ -215,9 +220,7 @@ function IssuerBlock({
           <Text style={styles.issuerName}>{company.companyName}</Text>
         )}
         <Text style={styles.issuerAddr}>{company.address}</Text>
-        <Text style={styles.issuerContact}>
-          {company.gstin === '' ? '' : `GSTIN: ${company.gstin} - `}Mobile: {company.mobile} - Email: {company.email}
-        </Text>
+        {contactLine !== '' && <Text style={styles.issuerContact}>{contactLine}</Text>}
       </View>
     </View>
   );
@@ -256,36 +259,38 @@ function Kv({ k, v }: { k: string; v: string }) {
   );
 }
 
-function PartiesAndMeta({ inv, templateDef }: { inv: Invoice; templateDef: import("../api/types").DynamicTemplate }) {
+function PartiesAndMeta({ inv, templateDef, docTitle }: { inv: Invoice; templateDef: import("../api/types").DynamicTemplate; docTitle: string }) {
   const showTax = hasTax(inv);
+  const isQuotation = docTitle.toLowerCase().includes('quotation');
+  const noLabel = isQuotation ? 'Quotation No' : 'Invoice No';
+  const dateLabel = isQuotation ? 'Quotation Date' : 'Invoice Date';
   const meta = (
     <View>
-      <Kv k="Invoice No" v={inv.invoiceNumber} />
-      <Kv k="Invoice Date" v={d(inv.invoiceDate)} />
-      <Kv k="PO No" v={inv.poNumber === '' ? '-' : inv.poNumber} />
-      <Kv k="PO Date" v={d(inv.poDate)} />
-      <Kv k="Vehicle No" v={inv.vehicleNumber === '' ? '-' : inv.vehicleNumber} />
+      <Kv k={noLabel} v={inv.invoiceNumber} />
+      <Kv k={dateLabel} v={d(inv.invoiceDate)} />
+      {isQuotation && (inv as any).validUntil !== undefined ? null : null}
+      {inv.poNumber !== '' && <Kv k="PO No" v={inv.poNumber} />}
+      {inv.poDate && <Kv k="PO Date" v={d(inv.poDate)} />}
+      {inv.vehicleNumber !== '' && <Kv k="Vehicle No" v={inv.vehicleNumber} />}
       <Kv
         k="Supply"
         v={showTax ? (inv.isInterstate ? 'Inter-state (IGST)' : 'Intra-state (CGST+SGST)') : 'Bill of Supply (no GST)'}
       />
     </View>
   );
-  const boxed =
-    templateDef.base_layout === 'minimal' ? (
-      meta
-    ) : (
-      <View
-        style={{
-          padding: 8,
-          borderWidth: templateDef.base_layout === 'modern' ? 0.8 : 0.5,
-          borderColor: templateDef.base_layout === 'modern' ? INK : MID,
-        }}
-      >
-        {meta}
-      </View>
-    );
-
+  // Quotation validUntil if present (poDate holds validUntil for quotations)
+  const validUntil = isQuotation ? (inv as any).poDate as Date | null : null;
+  const metaWithValid = (
+    <View>
+      {meta}
+      {isQuotation && validUntil && <Kv k="Valid Until" v={d(validUntil)} />}
+    </View>
+  );
+  const boxedContent = templateDef.base_layout === 'minimal' ? metaWithValid : (
+    <View style={{ padding: 8, borderWidth: templateDef.base_layout === 'modern' ? 0.8 : 0.5, borderColor: templateDef.base_layout === 'modern' ? INK : MID }}>
+      {metaWithValid}
+    </View>
+  );
   return (
     <View style={{ flexDirection: 'row' }}>
       <View style={{ flex: 3 }}>
@@ -294,7 +299,7 @@ function PartiesAndMeta({ inv, templateDef }: { inv: Invoice; templateDef: impor
         <Party title="Ship To" p={inv.shipTo} templateDef={templateDef} />
       </View>
       <View style={{ width: 12 }} />
-      <View style={{ flex: 2 }}>{boxed}</View>
+      <View style={{ flex: 2 }}>{boxedContent}</View>
     </View>
   );
 }
@@ -436,7 +441,7 @@ function FooterSplit({
         {showTax && totalRow('SGST', m(inv.totalSGST), false)}
         {showTax && totalRow('IGST', m(inv.totalIGST), false)}
         {!showTax && totalRow('Subtotal', m(inv.totalTaxableValue), false)}
-        {totalRow('Round Off', Number.isFinite(inv.roundOff) ? inv.roundOff.toFixed(2) : '0.00', false)}
+        {Number.isFinite(inv.roundOff) && Math.abs(inv.roundOff) >= 0.005 && totalRow('Round Off', inv.roundOff.toFixed(2), false)}
         {totalRow(
           'Grand Total',
           `Rs. ${m(inv.grandTotal)}`,
@@ -453,14 +458,19 @@ function FooterSplit({
     </View>
   );
 
+  const bank = company.bankDetails;
+  const hasBank = bank.accountNumber !== '' || bank.bankName !== '' || bank.ifscCode !== '' || bank.branchName !== '';
   return (
     <View style={{ flexDirection: 'row' }}>
       <View style={{ flex: 3 }}>
-        <SectionTitle text="Bank Details" templateDef={templateDef} />
-        <Text style={styles.small}>
-          A/c: {company.bankDetails.accountNumber} - Bank: {company.bankDetails.bankName} - Branch:{' '}
-          {company.bankDetails.branchName} - IFSC: {company.bankDetails.ifscCode}
-        </Text>
+        {hasBank && (
+          <>
+            <SectionTitle text="Bank Details" templateDef={templateDef} />
+            <Text style={styles.small}>
+              {[bank.accountNumber && `A/c: ${bank.accountNumber}`, bank.bankName && `Bank: ${bank.bankName}`, bank.branchName && `Branch: ${bank.branchName}`, bank.ifscCode && `IFSC: ${bank.ifscCode}`].filter(Boolean).join(' - ')}
+            </Text>
+          </>
+        )}
         <View style={{ height: 6 }} />
         <SectionTitle text="Amount in Words" templateDef={templateDef} />
         <Text style={styles.smallBold}>{inv.amountInWords}</Text>
@@ -693,7 +703,7 @@ export function InvoiceDocument({
         <View style={{ height: 8 }} />
         <IssuerBlock company={company} logoSrc={logoSrc} templateDef={templateDef} />
         <View style={{ height: 8 }} />
-        <PartiesAndMeta inv={inv} templateDef={templateDef} />
+        <PartiesAndMeta inv={inv} templateDef={templateDef} docTitle={docTitle} />
         <View style={{ height: 10 }} />
         <ItemsTable inv={inv} templateDef={templateDef} />
         <View style={{ height: 10 }} />

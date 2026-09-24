@@ -81,26 +81,26 @@ describe('computeDashboard', () => {
 
   test('month revenue excludes cancelled + other months', () => {
     const s = computeDashboard(list, SEP);
-    expect(s.revenue).toBe(1180 + 2360 + 100);
-    expect(s.inMonth.map((i) => i.invoiceId).sort()).toEqual(['a', 'b', 'e']);
+    expect(s.revenue).toBe(1180 + 2360); // draft excluded
+    expect(s.inMonth.map((i) => i.invoiceId).sort()).toEqual(['a', 'b']);
     expect(s.prevRevenue).toBe(500);
-    expect(s.deltaPct).toBeCloseTo(((3640 - 500) / 500) * 100, 5);
+    expect(s.deltaPct).toBeCloseTo(((3540 - 500) / 500) * 100, 5);
   });
 
   test('outstanding / paid / overdue / counts', () => {
     const s = computeDashboard(list, SEP);
-    expect(s.outstanding).toBe(1180 + 500 + 100); // issued + draft
+    expect(s.outstanding).toBe(1180 + 500); // issued only, draft excluded
     expect(s.paid).toBe(2360);
     expect(s.overdueCount).toBe(2); // issued a + c
-    expect(s.unpaidCount).toBe(3);
+    expect(s.unpaidCount).toBe(2);
     expect(s.paidCount).toBe(1);
     expect(s.cancelledCount).toBe(1);
-    expect(s.visible).toHaveLength(4);
+    expect(s.visible).toHaveLength(3);
   });
 
   test('month tax split sums CGST/SGST/IGST', () => {
     const s = computeDashboard(list, SEP);
-    expect(s.taxMonth).toEqual({ cgst: 90 + 180 + 90, sgst: 90 + 180 + 90, igst: 0 });
+    expect(s.taxMonth).toEqual({ cgst: 90 + 180, sgst: 90 + 180, igst: 0 });
   });
 
   test('recent is newest-first, top 5 (includes cancelled, like mobile)', () => {

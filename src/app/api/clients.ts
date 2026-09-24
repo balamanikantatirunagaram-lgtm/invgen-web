@@ -1,6 +1,6 @@
 /** Client CRUD + search. Mirrors mobile ClientRepository (ilike search). */
 import { getSupabase } from '../supabase/client';
-import { mapSupabase } from '../lib/errors';
+import { mapSupabase, isUniqueViolation } from '../lib/errors';
 import { rowString, type Row } from '../lib/rows';
 import { clientFromRow, clientToRow, type Client } from './types';
 
@@ -54,16 +54,26 @@ export async function searchClients(
   }
 }
 
-export async function createClient(c: Omit<Client, 'id'>): Promise<string> {
+export async function createClient(c: Omit<Client, 'id'>, draftId: string): Promise<string> {
   try {
     const { data, error } = await getSupabase()
       .from('clients')
-      .insert(clientToRow(c))
+      .insert({ ...clientToRow(c), id: draftId })
       .select('id')
       .single();
     if (error) throw error;
     return rowString((data as Row)['id']);
   } catch (e) {
+    if (isUniqueViolation(e)) {
+      try {
+        const { data } = await getSupabase()
+          .from('clients')
+          .select('id')
+          .eq('id', draftId)
+          .maybeSingle();
+        if (data) return draftId;
+      } catch {}
+    }
     throw mapSupabase(e);
   }
 }

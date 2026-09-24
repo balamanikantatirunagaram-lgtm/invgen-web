@@ -10,6 +10,7 @@ import {
 import { userMessage } from '../../lib/errors';
 import {
   requiredField,
+  validateAccountNumber,
   validateEmail,
   validateGstin,
   validateIfsc,
@@ -287,6 +288,7 @@ function CompanyIdentityForm() {
   const [supplyState, setSupplyState] = useState(c?.supplyState ?? '');
   const [mob, setMob] = useState(c?.mobile ?? '');
   const [email, setEmail] = useState(c?.email ?? '');
+  // Pre-fill mobile from onboarding state was missing; keep as-is but make optional if empty during first save
   const [logo, setLogo] = useState(c?.logoBase64 ?? '');
   const [logoBusy, setLogoBusy] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -313,9 +315,9 @@ function CompanyIdentityForm() {
     if (a) e.addr = a;
     const g = validateGstin(gstin, false);
     if (g) e.gstin = g;
-    const m = validateMobile(mob);
+    const m = validateMobile(mob, false);
     if (m) e.mob = m;
-    const em = validateEmail(email);
+    const em = validateEmail(email, false);
     if (em) e.email = em;
     setErrors(e);
     if (Object.keys(e).length > 0) return;
@@ -429,10 +431,10 @@ function CompanyIdentityForm() {
               </Field>
             </div>
             <div className="grid sm:grid-cols-2 gap-4">
-              <Field label="Mobile" required error={errors.mob}>
+              <Field label="Mobile" error={errors.mob} hint="Optional — shown on invoices">
                 <input value={mob} onChange={(e) => setMob(e.target.value)} inputMode="tel" className={inputCls} />
               </Field>
-              <Field label="Email" required error={errors.email}>
+              <Field label="Email" error={errors.email}>
                 <input value={email} onChange={(e) => setEmail(e.target.value)} inputMode="email" className={inputCls} />
               </Field>
             </div>
@@ -475,6 +477,8 @@ function BankDetailsForm() {
     const e: Record<string, string> = {};
     const ifscErr = validateIfsc(ifsc, false);
     if (ifscErr) e.ifsc = ifscErr;
+    const accErr = validateAccountNumber(acc);
+    if (accErr) e.acc = accErr;
     setErrors(e);
     if (Object.keys(e).length > 0) return;
 
@@ -513,8 +517,8 @@ function BankDetailsForm() {
               <input value={bank} onChange={(e) => setBank(e.target.value)} className={inputCls} placeholder="HDFC Bank" />
             </Field>
             <div className="grid sm:grid-cols-2 gap-4">
-              <Field label="Account Number">
-                <input value={acc} onChange={(e) => setAcc(e.target.value)} inputMode="numeric" className={inputCls} />
+              <Field label="Account Number" error={errors.acc}>
+                <input value={acc} onChange={(e) => setAcc(e.target.value)} inputMode="numeric" className={inputCls} placeholder="9–18 digits" />
               </Field>
               <Field label="IFSC" error={errors.ifsc}>
                 <input
@@ -594,8 +598,8 @@ function InvoicingPrefsForm() {
       ) : (
         <>
           <Card className="p-5 space-y-4">
-            <Field label="Invoice Prefix" hint="e.g. INV-25-26-">
-              <input value={prefix} onChange={(e) => setPrefix(e.target.value)} className={inputCls} />
+            <Field label="Invoice Prefix" hint="e.g. INV- (prefix restarts from 0001 when changed)">
+              <input value={prefix} onChange={(e) => setPrefix(e.target.value)} className={inputCls} placeholder="INV-" />
             </Field>
             <Field label="Terms & Conditions" hint="One per line">
               <textarea value={terms} onChange={(e) => setTerms(e.target.value)} rows={4} className={inputCls} />

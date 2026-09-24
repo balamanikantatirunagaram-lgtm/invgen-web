@@ -81,11 +81,14 @@ export default function ClientsPage() {
   const [verifying, setVerifying] = useState(false);
   const [verifyNote, setVerifyNote] = useState<string | null>(null);
 
+  const [draftId, setDraftId] = useState('');
+
   const openAdd = () => {
     setEditing(null);
     setForm(EMPTY_FORM);
     setErrors({});
     setVerifyNote(null);
+    setDraftId(typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `c-${Date.now()}`);
     setModalOpen(true);
   };
 
@@ -128,6 +131,14 @@ export default function ClientsPage() {
     const e: Partial<Record<keyof ClientForm, string>> = {};
     const nameErr = requiredField(form.businessName, 'Business name');
     if (nameErr) e.businessName = nameErr;
+    // M9 duplicate warning
+    if (!nameErr && !editing) {
+      const dup = (clientsQuery.data ?? []).find(c => c.businessName.trim().toLowerCase() === form.businessName.trim().toLowerCase());
+      if (dup) {
+        const ok = window.confirm(`A client named "${dup.businessName}" already exists (${dup.mobile || dup.gstin || 'no GSTIN'}). Create anyway?`);
+        if (!ok) return;
+      }
+    }
     const gstErr = validateGstin(form.gstin, false);
     if (gstErr) e.gstin = gstErr;
     if (form.gstin.trim() === '' && normalizeStateCode(form.supplyState) === '') {
@@ -163,7 +174,7 @@ export default function ClientsPage() {
         },
       );
     } else {
-      createMut.mutate(payload, {
+      createMut.mutate({ client: payload, draftId }, {
         onSuccess: () => {
           toast('Client added');
           setModalOpen(false);

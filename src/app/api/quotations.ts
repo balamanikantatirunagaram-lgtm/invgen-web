@@ -15,7 +15,7 @@ import {
   type QuotationFilter,
   type QuotationStatus,
 } from './types';
-import { bumpCounterBestEffort, peekCounter } from './counters';
+import { bumpCounterBestEffort } from './counters';
 import { assertQuota } from './usage';
 import { createInvoiceAtomic, type NewInvoice } from './invoices';
 
@@ -103,15 +103,19 @@ export async function createQuotationAtomic(
     throw mapSupabase(e);
   }
 
-  let start = 0;
-  try {
-    start = await peekCounter(ownerId);
-  } catch {
-    start = 0;
+  // Per-prefix independent sequence (H5 fix: first QUO is 0001, not shared with invoices)
+  let next: number;
+  if (existing.size > 0) {
+    let max = 0;
+    for (const n of existing) {
+      const num = parseInt(n.slice(p.length), 10);
+      if (Number.isFinite(num) && num > max) max = num;
+    }
+    next = max + 1;
+    while (existing.has(formatQuotationNumber(p, next))) next++;
+  } else {
+    next = 1;
   }
-
-  let next = start + 1;
-  while (existing.has(formatQuotationNumber(p, next))) next++;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const number = formatQuotationNumber(p, next);

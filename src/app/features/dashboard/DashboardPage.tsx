@@ -12,7 +12,9 @@ import {
   ReceiptText,
   Users,
 } from 'lucide-react';
-import { useClients, useCompany, useInvoices, useProducts } from '../../hooks/queries';
+import { useClients, useCompany, useInvoices, useProducts, useQuota } from '../../hooks/queries';
+import { FREE_MONTHLY_LIMIT } from '../../api/usage';
+import { UsageBar } from '../../components/ui';
 import { useSession } from '../../stores/session';
 import { userMessage } from '../../lib/errors';
 import { fmtDate, fmtInr } from '../../lib/format';
@@ -71,7 +73,7 @@ export default function DashboardPage() {
     company?.companyName !== '' && company?.companyName != null
       ? company.companyName
       : (user?.displayName || user?.email || 'there');
-  const pendingCount = all.filter((i) => i.status === 'issued' || i.status === 'draft').length;
+  const pendingCount = all.filter((i) => i.status === 'issued').length;
 
   // --- Setup checklist (Phase B) — replaces single banner ---
   const clientsQuery = useClients();
@@ -104,6 +106,12 @@ export default function DashboardPage() {
     );
   }
 
+function UsageBarWrapper({ kind }: { kind: 'invoices' | 'quotations' }) {
+  const q = useQuota(kind);
+  if (q.data == null) return null;
+  return <UsageBar used={q.data} limit={FREE_MONTHLY_LIMIT} label={kind} />;
+}
+
   return (
     <div>
       {/* Header: greeting + pending bell */}
@@ -116,6 +124,7 @@ export default function DashboardPage() {
         <button
           onClick={() => navigate('/app/invoices')}
           title={pendingCount > 0 ? `${pendingCount} pending invoices` : 'No pending invoices'}
+          aria-label={pendingCount > 0 ? `${pendingCount} unpaid invoices - view ledger` : 'No pending invoices - view ledger'}
           className="relative shrink-0 p-3 rounded-2xl bg-surface border border-border-color hover:border-ink transition-colors"
         >
           <Bell className="h-5 w-5" />
@@ -127,6 +136,11 @@ export default function DashboardPage() {
         </button>
       </div>
 
+      {/* Free plan meters (L7) */}
+      <div className="grid sm:grid-cols-2 gap-3 mb-4">
+        <UsageBarWrapper kind="invoices" />
+        <UsageBarWrapper kind="quotations" />
+      </div>
       {/* Revenue hero */}
       <div className="bg-ink text-surface rounded-3xl p-6 sm:p-8 shadow-xl mb-6">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-5">

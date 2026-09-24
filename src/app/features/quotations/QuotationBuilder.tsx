@@ -2,11 +2,11 @@ import { useTemplates } from '../../hooks/useTemplates';
 import { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Plus, Trash2 } from 'lucide-react';
-import { useClients, useCompany, useCreateQuotation, useOwnerId, useQuotation, useUpdateQuotation } from '../../hooks/queries';
+import { useClients, useCompany, useCreateQuotation, useOwnerId, useProducts, useQuotation, useUpdateQuotation } from '../../hooks/queries';
 import { useSession } from '../../stores/session';
 import { userMessage, AppError } from '../../lib/errors';
 import { GST_SLABS, UNITS } from '../../lib/constants';
-import { fmtInr } from '../../lib/format';
+import { fmtInr, parseDecimal } from '../../lib/format';
 import { validateGstRate } from '../../lib/validators';
 import { formatQuotationNumber, type InvoiceTemplate,  } from '../../api/types';
 import { peekCounter } from '../../api/counters';
@@ -19,9 +19,8 @@ function money(v: number): string {
 }
 
 function numInput(v: string, fallback: number): number {
-  if (v.trim() === '') return NaN;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : fallback;
+  const n = parseDecimal(v);
+  return Number.isFinite(n) ? n : (v.trim() === '' ? NaN : fallback);
 }
 
 function ClientPicker({ label, value, clients, onPick }: { label: string; value: any; clients: any[]; onPick: (c: any) => void }) {
@@ -106,10 +105,12 @@ function ItemRow({ item, index, products, deletable }: { item: BuilderItem; inde
       <td className="px-2 py-2.5 w-[112px]">
         <input value={Number.isFinite(item.rate) ? String(item.rate) : ''} onChange={(e) => patch({ rate: numInput(e.target.value, NaN) })} inputMode="decimal" placeholder="0.00" className={cellCls} aria-label={`Row ${index + 1} rate`} />
       </td>
-      <td className="px-2 py-2.5 w-[104px]">
-        <input value={Number.isFinite(item.gstRate) ? String(item.gstRate) : ''} onChange={(e) => patch({ gstRate: numInput(e.target.value, NaN) })} inputMode="decimal" list={`gst-slabs-${item.key}`} placeholder="GST %" disabled={isExempt} title={isExempt ? 'Bill of Supply — no GST charged' : undefined} className={`${cellCls} disabled:opacity-60`} aria-label={`Row ${index + 1} GST percent`} />
-        <datalist id={`gst-slabs-${item.key}`}>{GST_SLABS.map((g) => (<option key={g} value={g} />))}</datalist>
-      </td>
+      {!isExempt && (
+        <td className="px-2 py-2.5 w-[104px]">
+          <input value={Number.isFinite(item.gstRate) ? String(item.gstRate) : ''} onChange={(e) => patch({ gstRate: numInput(e.target.value, NaN) })} inputMode="decimal" list={`gst-slabs-${item.key}`} placeholder="GST %" className={cellCls} aria-label={`Row ${index + 1} GST percent`} />
+          <datalist id={`gst-slabs-${item.key}`}>{GST_SLABS.map((g) => (<option key={g} value={g} />))}</datalist>
+        </td>
+      )}
       <td className="px-2 py-2.5 text-sm text-right whitespace-nowrap">
         <p className="font-semibold">{money(item.taxableValue)}</p>
         <p className="text-xs text-ink-tertiary">{isInterstate ? `IGST ${item.igstRate}% · ${money(item.igstAmount)}` : `CGST ${item.cgstRate}% · ${money(item.cgstAmount)} + SGST ${item.sgstRate}% · ${money(item.sgstAmount)}`}</p>
@@ -236,7 +237,8 @@ export default function QuotationBuilder() {
     if (saving || !ownerId) return;
     setSaveError(null);
     const err = validateBuilder(s, isEdit);
-    if (err) { setSaveError(err); return; }
+    if (err) { setSaveError(err); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    if (!s.billTo) { setSaveError('Select Bill To client'); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
     if (!s.isExempt) {
       for (let i = 0; i < s.items.length; i++) {
         const g = validateGstRate(s.items[i].gstRate);
@@ -322,7 +324,7 @@ export default function QuotationBuilder() {
   if (isEdit && !quotationQuery.isLoading && !quotationQuery.data) return <ErrorState message="Quotation not found." onRetry={() => navigate('/app/quotations')} />;
 
   const t = s.totals;
-  const productsList: any[] = []; // Could fetch products, but keep empty for now
+  const productsList = useProducts().data ?? [];
 
   return (
     <div>
@@ -371,8 +373,8 @@ export default function QuotationBuilder() {
             </button>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[620px]">
-              <thead><tr className="border-b border-border-color bg-surface-soft/60 text-left">{['#', 'Product', 'Qty / Unit', 'Rate', 'GST %', 'Tax / Total', ''].map((h) => (<th key={h} className="px-2 py-2.5 text-xs font-bold uppercase tracking-wider text-ink-tertiary">{h}</th>))}</tr></thead>
+            <table className="w-full min-w-[520px] sm:min-w-[620px]">
+              <thead><tr className="border-b border-border-color bg-surface-soft/60 text-left">{(s.isExempt ? ['#', 'Product', 'Qty / Unit', 'Rate', 'Total', ''] : ['#', 'Product', 'Qty / Unit', 'Rate', 'GST %', 'Tax / Total', '']).map((h) => (<th key={h} className="px-2 py-2.5 text-xs font-bold uppercase tracking-wider text-ink-tertiary">{h}</th>))}</tr></thead>
               <tbody>{s.items.map((it, i) => (<ItemRow key={it.key} item={it} index={i} products={productsList} deletable={s.items.length > 1} />))}</tbody>
             </table>
           </div>
@@ -384,7 +386,7 @@ export default function QuotationBuilder() {
               <dl className="space-y-2 text-sm">
                 <div className="flex justify-between"><dt className="text-ink-secondary">Taxable value</dt><dd className="font-semibold">{money(t.totalTaxableValue)}</dd></div>
                 {s.isInterstate ? (<div className="flex justify-between"><dt className="text-ink-secondary">IGST</dt><dd className="font-semibold">{money(t.totalIGST)}</dd></div>) : (<><div className="flex justify-between"><dt className="text-ink-secondary">CGST</dt><dd className="font-semibold">{money(t.totalCGST)}</dd></div><div className="flex justify-between"><dt className="text-ink-secondary">SGST</dt><dd className="font-semibold">{money(t.totalSGST)}</dd></div></>)}
-                <div className="flex justify-between"><dt className="text-ink-secondary">Round off</dt><dd className="font-semibold">{Number.isFinite(t.roundOff) ? (t.roundOff >= 0 ? '+' : '') + t.roundOff.toFixed(2) : '—'}</dd></div>
+                {Number.isFinite(t.roundOff) && Math.abs(t.roundOff) >= 0.005 && (<div className="flex justify-between"><dt className="text-ink-secondary">Round off</dt><dd className="font-semibold">{(t.roundOff >= 0 ? '+' : '') + t.roundOff.toFixed(2)}</dd></div>)}
                 <div className="border-t border-border-color pt-3 flex justify-between items-baseline"><dt className="font-bold">Grand total</dt><dd className="text-2xl font-bold">{money(t.grandTotal)}</dd></div>
               </dl>
               <p className="text-xs text-ink-secondary mt-3 leading-relaxed break-words">{s.amountInWords === '' ? '—' : s.amountInWords}</p>

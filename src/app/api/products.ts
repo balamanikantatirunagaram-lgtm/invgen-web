@@ -1,6 +1,6 @@
 /** Product catalog CRUD. Mirrors mobile ProductRepository. */
 import { getSupabase } from '../supabase/client';
-import { mapSupabase } from '../lib/errors';
+import { mapSupabase, isUniqueViolation } from '../lib/errors';
 import { rowString, type Row } from '../lib/rows';
 import { productFromRow, productToRow, type Product } from './types';
 
@@ -23,16 +23,26 @@ export async function fetchProducts(ownerId: string): Promise<Product[]> {
   }
 }
 
-export async function createProduct(p: Omit<Product, 'id'>): Promise<string> {
+export async function createProduct(p: Omit<Product, 'id'>, draftId: string): Promise<string> {
   try {
     const { data, error } = await getSupabase()
       .from('products')
-      .insert(productToRow(p))
+      .insert({ ...productToRow(p), id: draftId })
       .select('id')
       .single();
     if (error) throw error;
     return rowString((data as Row)['id']);
   } catch (e) {
+    if (isUniqueViolation(e)) {
+      try {
+        const { data } = await getSupabase()
+          .from('products')
+          .select('id')
+          .eq('id', draftId)
+          .maybeSingle();
+        if (data) return draftId;
+      } catch {}
+    }
     throw mapSupabase(e);
   }
 }
