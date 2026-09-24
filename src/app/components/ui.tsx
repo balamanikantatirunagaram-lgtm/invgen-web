@@ -290,6 +290,7 @@ export function StatusChip({ status }: { status: string }) {
 export function UsageBar({ used, limit, label }: { used: number; limit: number; label: string }) {
   const pct = Math.min(100, Math.round((used / limit) * 100));
   const full = used >= limit;
+  const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
   return (
     <div
       className={`mb-4 rounded-2xl border px-5 py-4 ${
@@ -302,7 +303,7 @@ export function UsageBar({ used, limit, label }: { used: number; limit: number; 
           {used} <span className="text-ink-tertiary font-semibold">of {limit} free {label} used</span>
         </p>
         <p className={`font-semibold ${full ? 'text-red-700' : 'text-ink-secondary'}`}>
-          {full ? 'Limit reached' : `${limit - used} left`}
+          {full ? 'Limit reached' : `${limit - used} ${plural(limit - used, 'left', 'left')}`}
         </p>
       </div>
       <div className="mt-2.5 h-2 rounded-full bg-surface-soft border border-border-color overflow-hidden">
@@ -313,7 +314,7 @@ export function UsageBar({ used, limit, label }: { used: number; limit: number; 
       </div>
       {full && (
         <p className="mt-2 text-xs text-red-700">
-          Monthly free limit reached. Contact admin for an extension — resets on the 1st.
+          Monthly free limit reached. Contact support via Help &amp; Support — resets on the 1st.
         </p>
       )}
     </div>

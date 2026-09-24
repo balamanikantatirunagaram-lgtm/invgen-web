@@ -10,6 +10,30 @@ export const FREE_MONTHLY_LIMIT = 20;
 
 export type QuotaKind = 'invoices' | 'quotations';
 
+/** Resolve effective limit (FREE_MONTHLY_LIMIT or per-user override from profiles). Exported for UI. */
+export async function getEffectiveLimit(ownerId: string, kind: QuotaKind): Promise<number> {
+  try {
+    const { data } = await getSupabase()
+      .from('profiles')
+      .select('quota_override_invoices, quota_override_quotations')
+      .eq('id', ownerId)
+      .maybeSingle();
+    const row = data as Record<string, unknown> | null;
+    if (row) {
+      const key = kind === 'invoices' ? 'quota_override_invoices' : 'quota_override_quotations';
+      const v = row[key];
+      if (typeof v === 'number' && Number.isFinite(v) && v > 0) return v;
+      if (typeof v === 'string' && v.trim() !== '') {
+        const n = parseInt(v, 10);
+        if (Number.isFinite(n) && n > 0) return n;
+      }
+    }
+  } catch {
+    // ignore — use default
+  }
+  return FREE_MONTHLY_LIMIT;
+}
+
 function monthStartIso(): string {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
@@ -34,12 +58,13 @@ export async function countThisMonth(ownerId: string, kind: QuotaKind): Promise<
 
 export async function assertQuota(ownerId: string, kind: QuotaKind): Promise<void> {
   const used = await countThisMonth(ownerId, kind);
+  const limit = await getEffectiveLimit(ownerId, kind);
   // ponytail: check-then-insert — two racing tabs can overshoot by 1;
   // move to a DB RPC with a row lock only if that ever matters.
-  if (used >= FREE_MONTHLY_LIMIT) {
+  if (used >= limit) {
     const label = kind === 'invoices' ? 'invoices' : 'quotations';
     throw AppError.quota(
-      `Free limit reached: ${FREE_MONTHLY_LIMIT} ${label} this month. Contact admin for an extension — resets on the 1st.`,
+      `Free limit reached: ${limit} ${label} this month. Contact support via Help & Support — resets on the 1st.`,
     );
   }
 }

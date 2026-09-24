@@ -378,7 +378,7 @@ export default function ClientsPage() {
                   value={form.mobile}
                   onChange={(e) => set('mobile', e.target.value)}
                   inputMode="tel"
-                  placeholder="9876543210"
+                  placeholder="10-digit mobile"
                   className={inputCls}
                 />
               </Field>

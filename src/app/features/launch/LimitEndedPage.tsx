@@ -17,22 +17,17 @@ export default function LimitEndedPage() {
       <h1 className="text-3xl font-bold tracking-tight">Free limit reached</h1>
       <p className="text-ink-secondary leading-relaxed">
         You've used all 20 free <span className="font-semibold text-ink">{label}</span> this month.
-        Contact us for an early-access extension — your limit resets on the 1st of every month.
+        Your limit resets on the 1st of every month. Need more? Reach us via Help &amp; Support —
+        an admin can grant a per-account extension.
       </p>
       <div className="flex flex-col sm:flex-row justify-center gap-3">
-        <a
-          href={`/contact?subject=${encodeURIComponent(`Request extension for ${label}`)}&message=${encodeURIComponent(`Hi, I've hit the 20 ${label} free limit this month. Please extend my quota. My account email is listed on my profile.`)}`}
+        <Link
+          to="/app/settings/support"
           className="px-6 py-3 rounded-xl bg-ink text-surface font-semibold hover:bg-ink-secondary transition-colors"
         >
-          Request extension
-        </a>
-        <a
-          href={`https://wa.me/919876543210?text=${encodeURIComponent(`Hi InvGen team, I've hit the 20 ${label} free limit. Please extend my quota.`)}`}
-          target="_blank" rel="noreferrer"
-          className="px-6 py-3 rounded-xl border border-border-strong font-semibold hover:bg-surface-soft transition-colors"
-        >
-          WhatsApp us
-        </a>
+          Contact support
+        </Link>
+        {/* No phone numbers anywhere — contact via contact.invgen@gmail.com / Help & Support only */}
         <Link
           to={back}
           className="px-6 py-3 rounded-xl border border-border-strong font-semibold hover:bg-surface-soft transition-colors"

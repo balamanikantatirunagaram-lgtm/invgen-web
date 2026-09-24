@@ -309,7 +309,7 @@ export default function WelcomeWizard() {
               )}
               <div>
                 <label className="block text-sm font-semibold mb-1.5">Mobile (optional)</label>
-                <input value={mobile} onChange={(e) => setMobile(e.target.value)} inputMode="tel" className={inputCls} placeholder="9876543210" />
+                <input value={mobile} onChange={(e) => setMobile(e.target.value)} inputMode="tel" className={inputCls} placeholder="10-digit mobile" />
                 {errors.mobile && <p className="mt-1 text-sm text-red-700">{errors.mobile}</p>}
               </div>
             </div>

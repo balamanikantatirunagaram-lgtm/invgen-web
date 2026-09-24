@@ -11,7 +11,7 @@ import { getSupabase } from '../supabase/client';
 import { AppError, mapSupabase } from '../lib/errors';
 import { rowString, type Row } from '../lib/rows';
 
-async function deleteAllFrom(table: 'invoices' | 'clients' | 'products', uid: string) {
+async function deleteAllFrom(table: 'invoices' | 'quotations' | 'clients' | 'products', uid: string) {
   // Paginated deletes (PostgREST caps rows per request).
   for (;;) {
     const { data, error } = await getSupabase()

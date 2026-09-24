@@ -3,10 +3,10 @@
  * `lib/services/gst/appyflow_gst_service.dart`.
  *
  * Lookup order (key safety):
- *  1. Supabase Edge Function `verify-gst` (recommended — key_secret stays
- *     server-side; deploy with `supabase functions deploy verify-gst`).
- *  2. Direct Appyflow GET fallback ONLY when VITE_APPYFLOW_KEY is set
- *     (dev convenience; exposes the key in the browser bundle).
+ *  1. Supabase Edge Function `verify-gst` (key_secret server-side; deploy
+ *     with `supabase secrets set APPYFLOW_KEY=<rotated_secret>`).
+ *  2. Direct Appyflow GET fallback ONLY in local DEV (import.meta.env.DEV)
+ *     when VITE_APPYFLOW_KEY is set — never in production bundles.
  *
  * Results cached 24h per GSTIN in localStorage (bounds paid-API cost).
  * Used by signup (requireActive) + add-client flows.
@@ -173,11 +173,21 @@ async function viaEdgeFunction(gst: string): Promise<Record<string, unknown>> {
 }
 
 async function viaDirectKey(gst: string): Promise<Record<string, unknown>> {
+  // Block in production — key must never ship in prod bundles
+  if (!import.meta.env.DEV) {
+    throw AppError.validation(
+      'GST verification is not configured. Deploy the verify-gst Edge Function.',
+    );
+  }
   const key = (import.meta.env.VITE_APPYFLOW_KEY as string | undefined)?.trim();
   if (!key) {
     throw AppError.validation(
-      'GST verification is not configured. Deploy the verify-gst Edge Function or set VITE_APPYFLOW_KEY.',
+      'GST verification is not configured. Deploy the verify-gst Edge Function.',
     );
+  }
+  if (typeof console !== 'undefined' && !(viaDirectKey as any)._warned) {
+    (viaDirectKey as any)._warned = true;
+    console.warn('[InvGen] VITE_APPYFLOW_KEY is set — key is visible in the browser bundle. Use the verify-gst Edge Function in production.');
   }
   const url = `https://appyflow.in/api/verifyGST?key_secret=${encodeURIComponent(key)}&gstNo=${encodeURIComponent(gst)}`;
   let res: Response;
@@ -214,12 +224,12 @@ export async function verifyGst(
     return cached;
   }
 
-  // Prefer the secure proxy; fall back to direct key for local dev.
+  // Prefer the secure proxy; fall back to direct key only in local DEV.
   let json: Record<string, unknown>;
   try {
     json = await viaEdgeFunction(gst);
   } catch (edgeError) {
-    if ((import.meta.env.VITE_APPYFLOW_KEY as string | undefined)?.trim()) {
+    if (import.meta.env.DEV && (import.meta.env.VITE_APPYFLOW_KEY as string | undefined)?.trim()) {
       json = await viaDirectKey(gst);
     } else {
       throw mapSupabase(edgeError);

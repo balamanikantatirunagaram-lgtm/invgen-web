@@ -33,8 +33,8 @@ npm run lint         # oxlint
    supabase secrets set APPYFLOW_KEY=<key_secret>
    supabase functions deploy verify-gst   # source: ./supabase/functions/verify-gst
    ```
-   Local dev fallback: `VITE_APPYFLOW_KEY` (exposes the key in the bundle —
-   dev only).
+    Local dev fallback: `VITE_APPYFLOW_KEY` (exposes the key in the bundle —
+    local dev only; never set in Vercel/production — remove it before deploy).
 
 ## App routes
 

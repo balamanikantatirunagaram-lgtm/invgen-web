@@ -169,8 +169,8 @@ export default function SettingsHubPage() {
             <p className="font-bold text-red-700 mb-1">Danger zone</p>
             <p className="text-sm text-ink-secondary mb-4">
               Permanently delete ALL your data (company, clients, products,
-              invoices) and sign out. This cannot be undone. Your login itself
-              is removed separately by support.
+              invoices, quotations including converted ones, and invoice events) and sign out.
+              This cannot be undone. Your login itself is removed separately by support.
             </p>
             <button
               onClick={() => setConfirmDelete(true)}
@@ -204,7 +204,7 @@ export default function SettingsHubPage() {
       {confirmDelete && (
         <ConfirmDialog
           title="Delete everything?"
-          message="Your company profile, clients, products and invoices are permanently erased and you are signed out. Continue?"
+          message="Your company profile, clients, products, invoices, quotations (including converted), and invoice events are permanently erased and you are signed out. Continue?"
           confirmLabel="Delete everything"
           onConfirm={doDelete}
           onCancel={() => setConfirmDelete(false)}
