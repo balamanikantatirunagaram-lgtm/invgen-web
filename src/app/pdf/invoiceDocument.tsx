@@ -268,10 +268,9 @@ function PartiesAndMeta({ inv, templateDef, docTitle }: { inv: Invoice; template
     <View>
       <Kv k={noLabel} v={inv.invoiceNumber} />
       <Kv k={dateLabel} v={d(inv.invoiceDate)} />
-      {isQuotation && (inv as any).validUntil !== undefined ? null : null}
-      {inv.poNumber !== '' && <Kv k="PO No" v={inv.poNumber} />}
-      {inv.poDate && <Kv k="PO Date" v={d(inv.poDate)} />}
-      {inv.vehicleNumber !== '' && <Kv k="Vehicle No" v={inv.vehicleNumber} />}
+      {!isQuotation && inv.poNumber !== '' && <Kv k="PO No" v={inv.poNumber} />}
+      {!isQuotation && inv.poDate && <Kv k="PO Date" v={d(inv.poDate)} />}
+      {!isQuotation && inv.vehicleNumber !== '' && <Kv k="Vehicle No" v={inv.vehicleNumber} />}
       <Kv
         k="Supply"
         v={showTax ? (inv.isInterstate ? 'Inter-state (IGST)' : 'Intra-state (CGST+SGST)') : 'Bill of Supply (no GST)'}

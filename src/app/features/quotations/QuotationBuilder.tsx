@@ -123,7 +123,7 @@ function ItemRow({ item, index, products, deletable }: { item: BuilderItem; inde
       )}
       <td className="px-2 py-2.5 text-sm text-right whitespace-nowrap">
         <p className="font-semibold">{money(item.taxableValue)}</p>
-        <p className="text-xs text-ink-tertiary">{isInterstate ? `IGST ${item.igstRate}% · ${money(item.igstAmount)}` : `CGST ${item.cgstRate}% · ${money(item.cgstAmount)} + SGST ${item.sgstRate}% · ${money(item.sgstAmount)}`}</p>
+        {!isExempt && <p className="text-xs text-ink-tertiary">{isInterstate ? `IGST ${item.igstRate}% · ${money(item.igstAmount)}` : `CGST ${item.cgstRate}% · ${money(item.cgstAmount)} + SGST ${item.sgstRate}% · ${money(item.sgstAmount)}`}</p>}
         <p className="font-bold mt-0.5">{money(item.itemTotal)}</p>
         <p className="text-xs text-ink-tertiary">{effectiveUnit(item)} · HSN {item.hsnCode === '' ? '—' : item.hsnCode}</p>
       </td>
@@ -150,6 +150,7 @@ export default function QuotationBuilder() {
   const updateMut = useUpdateQuotation();
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [billToError, setBillToError] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const [editBound, setEditBound] = useState<string | null>(null);
   const [companyBound, setCompanyBound] = useState(false);
@@ -172,9 +173,24 @@ export default function QuotationBuilder() {
     if (!isEdit) {
       st.setTemplate(company.invoiceTemplate);
       const prefix = 'QUO-';
-      peekCounter(ownerId).then((seq) => {
-        useBuilder.getState().setHeader({ invoiceNumber: formatQuotationNumber(prefix, seq + 1) });
-      }).catch(() => {});
+      // Use same per-prefix max+1 as createQuotationAtomic so suggestion matches saved number
+      import('../../api/quotations').then(async () => {
+        try {
+          const { getSupabase } = await import('../../supabase/client');
+          const { data } = await getSupabase().from('quotations').select('quotation_number').eq('owner_id', ownerId).like('quotation_number', `${prefix}%`).limit(1000);
+          let max = 0;
+          for (const r of (Array.isArray(data) ? data : []) as any[]) {
+            const n = parseInt(String(r['quotation_number'] ?? '').slice(prefix.length), 10);
+            if (Number.isFinite(n) && n > max) max = n;
+          }
+          useBuilder.getState().setHeader({ invoiceNumber: formatQuotationNumber(prefix, max + 1 || 1) });
+        } catch {
+          // fallback
+          peekCounter(ownerId).then((seq) => {
+            useBuilder.getState().setHeader({ invoiceNumber: formatQuotationNumber(prefix, seq + 1) });
+          }).catch(() => {});
+        }
+      });
     }
     setCompanyBound(true);
   }, [company, companyBound, ownerId, isEdit, isExempt]);
@@ -252,8 +268,12 @@ export default function QuotationBuilder() {
     const cur = useBuilder.getState() as any;
     setSaveError(null);
     const err = validateBuilder(cur, isEdit);
-    if (err) { setSaveError(err); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
-    if (!cur.billTo) { setSaveError('Select Bill To client'); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    if (err) {
+      if (err.includes('Bill To')) setBillToError('Choose a customer');
+      setSaveError(err); window.scrollTo({ top: 0, behavior: 'smooth' }); return;
+    }
+    if (!cur.billTo) { setBillToError('Choose a customer'); setSaveError('Select Bill To client'); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    setBillToError(null);
     if (!cur.isExempt) {
       for (let i = 0; i < cur.items.length; i++) {
         const g = validateGstRate(cur.items[i].gstRate);
@@ -378,7 +398,10 @@ export default function QuotationBuilder() {
           <Card className="p-5 space-y-4">
             <h2 className="font-bold">Customer</h2>
             {clientsQuery.isLoading ? (<p className="text-sm text-ink-tertiary">Loading clients…</p>) : (<>
-              <ClientPicker label="Bill To" value={s.billTo} clients={clients} onPick={s.setBillTo} />
+              <div className={billToError ? 'rounded-xl border border-red-300 p-2' : ''}>
+                <ClientPicker label="Bill To" value={s.billTo} clients={clients} onPick={(c) => { setBillToError(null); s.setBillTo(c); }} />
+                {billToError && <p className="mt-1 text-sm text-red-700">{billToError}</p>}
+              </div>
               {s.isExempt ? (<div className="rounded-xl bg-amber-50 border border-amber-200 p-3"><p className="text-sm font-semibold text-amber-900">Bill of Supply — no GST</p><p className="text-xs text-amber-800 mt-1">Exempt accounts issue bills without tax.</p></div>) : (<div className="rounded-xl bg-surface-soft/60 border border-border-color p-3"><label className="flex items-center gap-2.5 text-sm cursor-pointer"><input type="checkbox" checked={s.isInterstate} onChange={(e) => s.setInterstate(e.target.checked)} className="h-4 w-4 accent-black" /><span className="font-semibold">Inter-state supply (IGST)</span>{s.interstateAuto && (<span className="text-[11px] font-bold uppercase tracking-wider bg-surface border border-border-strong rounded-full px-2 py-0.5 text-ink-tertiary">Auto</span>)}</label><p className="text-xs text-ink-tertiary mt-1.5">{s.isInterstate ? 'Inter-state → IGST' : 'Intra-state → CGST + SGST'} · auto-detected</p></div>)}
               <label className="flex items-center gap-2.5 text-sm cursor-pointer"><input type="checkbox" checked={s.sameAsBillTo} onChange={(e) => s.setSameAsBillTo(e.target.checked)} className="h-4 w-4 accent-black" /><span className="font-medium">Ship to same as Bill to</span></label>
               {!s.sameAsBillTo && (<ClientPicker label="Ship To" value={s.shipTo} clients={clients} onPick={s.setShipTo} />)}
@@ -405,7 +428,7 @@ export default function QuotationBuilder() {
               <h2 className="font-bold mb-4">Summary (estimate)</h2>
               <dl className="space-y-2 text-sm">
                 <div className="flex justify-between"><dt className="text-ink-secondary">Taxable value</dt><dd className="font-semibold">{money(t.totalTaxableValue)}</dd></div>
-                {s.isInterstate ? (<div className="flex justify-between"><dt className="text-ink-secondary">IGST</dt><dd className="font-semibold">{money(t.totalIGST)}</dd></div>) : (<><div className="flex justify-between"><dt className="text-ink-secondary">CGST</dt><dd className="font-semibold">{money(t.totalCGST)}</dd></div><div className="flex justify-between"><dt className="text-ink-secondary">SGST</dt><dd className="font-semibold">{money(t.totalSGST)}</dd></div></>)}
+                {!s.isExempt && (s.isInterstate ? (<div className="flex justify-between"><dt className="text-ink-secondary">IGST</dt><dd className="font-semibold">{money(t.totalIGST)}</dd></div>) : (<><div className="flex justify-between"><dt className="text-ink-secondary">CGST</dt><dd className="font-semibold">{money(t.totalCGST)}</dd></div><div className="flex justify-between"><dt className="text-ink-secondary">SGST</dt><dd className="font-semibold">{money(t.totalSGST)}</dd></div></>))}
                 {Number.isFinite(t.roundOff) && Math.abs(t.roundOff) >= 0.005 && (<div className="flex justify-between"><dt className="text-ink-secondary">Round off</dt><dd className="font-semibold">{(t.roundOff >= 0 ? '+' : '') + t.roundOff.toFixed(2)}</dd></div>)}
                 <div className="border-t border-border-color pt-3 flex justify-between items-baseline"><dt className="font-bold">Grand total</dt><dd className="text-2xl font-bold">{money(t.grandTotal)}</dd></div>
               </dl>

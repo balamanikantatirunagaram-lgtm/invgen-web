@@ -251,7 +251,7 @@ export default function VerifyGstPage() {
               <p className="text-sm text-ink-tertiary truncate">{user.email}</p>
             </div>
             <span className="text-xs font-bold uppercase tracking-wider bg-surface-soft border border-border-color rounded-lg px-3 py-1.5">
-              Step 2 of 2
+              Step 1 of 5
             </span>
           </div>
         )}

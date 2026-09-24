@@ -59,8 +59,8 @@ export async function deleteAccountAndData(): Promise<void> {
       // best-effort
     }
 
-    for (const table of ['invoices', 'clients', 'products'] as const) {
-      await deleteAllFrom(table, uid);
+    for (const table of ['invoices', 'quotations', 'clients', 'products'] as const) {
+      await deleteAllFrom(table as any, uid);
     }
     // Single rows (counters keyed by owner_id; companies/profiles by id).
     for (const t of ['counters', 'companies', 'profiles'] as const) {

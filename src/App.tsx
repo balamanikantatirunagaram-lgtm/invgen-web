@@ -24,8 +24,27 @@ import EarlyAccessLanding from './app/features/launch/EarlyAccessLanding';
 import LimitEndedPage from './app/features/launch/LimitEndedPage';
 
 // Lazy: @react-pdf/renderer is heavy — split it out of the main bundle.
-const PdfPreviewPage = React.lazy(() => import('./app/features/invoices/PdfPreviewPage'));
-const QuotationPdfPreview = React.lazy(() => import('./app/features/quotations/QuotationPdfPreview'));
+// Retry once on chunk 404 (deploy) — reloads app, guarded by sessionStorage.
+function lazyRetry<T extends React.ComponentType<any>>(importer: () => Promise<{ default: T }>) {
+  return React.lazy(async () => {
+    try {
+      return await importer();
+    } catch (e: any) {
+      const msg = String(e?.message ?? e);
+      if (msg.includes('Failed to fetch dynamically imported module') || msg.includes('Loading chunk')) {
+        const key = 'lazy-reload-' + importer.toString().slice(0, 40);
+        if (!sessionStorage.getItem(key)) {
+          sessionStorage.setItem(key, '1');
+          location.reload();
+          return { default: (() => null) as unknown as T };
+        }
+      }
+      throw e;
+    }
+  });
+}
+const PdfPreviewPage = lazyRetry(() => import('./app/features/invoices/PdfPreviewPage'));
+const QuotationPdfPreview = lazyRetry(() => import('./app/features/quotations/QuotationPdfPreview'));
 
 function PdfPreviewSuspense() {
   return (

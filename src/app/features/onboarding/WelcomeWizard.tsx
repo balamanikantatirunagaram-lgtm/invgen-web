@@ -1,5 +1,5 @@
 import { useTemplates } from '../../hooks/useTemplates';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Check, ChevronRight, Building2, Users, Package, FilePlus2, ArrowRight } from 'lucide-react';
 import { useCompany, useCreateClient, useCreateProduct, useOwnerId } from '../../hooks/queries';
@@ -28,6 +28,8 @@ export default function WelcomeWizard() {
 
   const [step, setStep] = useState(1);
   const totalSteps = 4;
+  const displayStep = step + 1;
+  const displayTotal = 5;
 
   // Step 1: Confirm profile
   const [displayName, setDisplayName] = useState(user?.displayName ?? '');
@@ -56,6 +58,15 @@ export default function WelcomeWizard() {
   const [saving, setSaving] = useState(false);
 
   const isExempt = profile?.gstExempt === true && !profile?.gstVerified;
+
+  // L2: prefill Place of supply from company if already saved (GSTIN exempt flow)
+  useEffect(() => {
+    if (company?.supplyState && supplyState === '') setSupplyState(company.supplyState);
+  }, [company?.supplyState]);
+  // M7: default GST to 0 for no-GST accounts
+  useEffect(() => {
+    if (isExempt) setProductGst('0');
+  }, [isExempt]);
 
   const markOnboarded = async (skip = false) => {
     if (!ownerId || !user) return;
@@ -256,7 +267,7 @@ export default function WelcomeWizard() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold tracking-tight">Confirm your profile</h1>
-                <p className="text-sm text-ink-secondary">Step 1 of 4 — let's get your workspace ready</p>
+                <p className="text-sm text-ink-secondary">Step {displayStep} of {displayTotal} — let's get your workspace ready</p>
               </div>
             </div>
 
@@ -326,7 +337,7 @@ export default function WelcomeWizard() {
               </div>
               <div>
                 <h2 className="text-2xl font-bold tracking-tight">Business defaults</h2>
-                <p className="text-sm text-ink-secondary">Step 2 of 4 — prefix and template</p>
+                <p className="text-sm text-ink-secondary">Step {displayStep} of {displayTotal} — prefix and template</p>
               </div>
             </div>
 
@@ -334,7 +345,7 @@ export default function WelcomeWizard() {
               <div>
                 <label className="block text-sm font-semibold mb-1.5">Invoice prefix</label>
                 <input value={prefix} onChange={(e) => setPrefix(e.target.value)} className={inputCls} placeholder="INV-" />
-                <p className="mt-1 text-xs text-ink-tertiary">e.g. INV-25-26- → INV-25-26-0001</p>
+                <p className="mt-1 text-xs text-ink-tertiary">e.g. INV- → INV-0001</p>
               </div>
               {isExempt && (
                 <div>
@@ -393,7 +404,7 @@ export default function WelcomeWizard() {
               </div>
               <div>
                 <h2 className="text-2xl font-bold tracking-tight">First client & product</h2>
-                <p className="text-sm text-ink-secondary">Step 3 of 4 — add them now or skip</p>
+                <p className="text-sm text-ink-secondary">Step {displayStep} of {displayTotal} — add them now or skip</p>
               </div>
             </div>
 

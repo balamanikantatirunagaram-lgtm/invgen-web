@@ -369,7 +369,7 @@ function CompanyIdentityForm() {
             </div>
             <div className="flex-1">
               <p className="font-bold">Company logo</p>
-              <p className="text-xs text-ink-secondary">PNG or JPG, square or wide works best. Saved when you press Save.</p>
+              <p className="text-xs text-ink-secondary">PNG or JPG, square or wide works best. Saves automatically.</p>
               <p className="text-sm text-ink-secondary">Prints on invoices.</p>
             </div>
             <input

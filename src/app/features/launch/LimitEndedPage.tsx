@@ -27,7 +27,7 @@ export default function LimitEndedPage() {
           Request extension
         </a>
         <a
-          href={`https://wa.me/?text=${encodeURIComponent(`Hi InvGen team, I've hit the 20 ${label} free limit. Please extend my quota.`)}`}
+          href={`https://wa.me/919876543210?text=${encodeURIComponent(`Hi InvGen team, I've hit the 20 ${label} free limit. Please extend my quota.`)}`}
           target="_blank" rel="noreferrer"
           className="px-6 py-3 rounded-xl border border-border-strong font-semibold hover:bg-surface-soft transition-colors"
         >

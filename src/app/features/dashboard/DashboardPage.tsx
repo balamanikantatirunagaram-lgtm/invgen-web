@@ -222,7 +222,7 @@ function UsageBarWrapper({ kind }: { kind: 'invoices' | 'quotations' }) {
         <SummaryTile
           label="Paid"
           value={fmtInr(stats.paid)}
-          sub={`${stats.paidCount} invoices`}
+          sub={`${stats.paidCount} invoice${stats.paidCount === 1 ? '' : 's'}`}
         />
         <SummaryTile
           label="Open / overdue"

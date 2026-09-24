@@ -286,11 +286,13 @@ function ItemRow({
       )}
       <td className="px-2 py-2.5 text-sm text-right whitespace-nowrap">
         <p className="font-semibold">{money(item.taxableValue)}</p>
-        <p className="text-xs text-ink-tertiary">
-          {isInterstate
-            ? `IGST ${item.igstRate}% · ${money(item.igstAmount)}`
-            : `CGST ${item.cgstRate}% · ${money(item.cgstAmount)} + SGST ${item.sgstRate}% · ${money(item.sgstAmount)}`}
-        </p>
+        {!isExempt && (
+          <p className="text-xs text-ink-tertiary">
+            {isInterstate
+              ? `IGST ${item.igstRate}% · ${money(item.igstAmount)}`
+              : `CGST ${item.cgstRate}% · ${money(item.cgstAmount)} + SGST ${item.sgstRate}% · ${money(item.sgstAmount)}`}
+          </p>
+        )}
         <p className="font-bold mt-0.5">{money(item.itemTotal)}</p>
         <p className="text-xs text-ink-tertiary">{effectiveUnit(item)} · HSN {item.hsnCode === '' ? '—' : item.hsnCode}</p>
       </td>
@@ -687,22 +689,24 @@ export default function BuilderPage() {
                   <dt className="text-ink-secondary">Taxable value</dt>
                   <dd className="font-semibold">{money(t.totalTaxableValue)}</dd>
                 </div>
-                {s.isInterstate ? (
-                  <div className="flex justify-between">
-                    <dt className="text-ink-secondary">IGST</dt>
-                    <dd className="font-semibold">{money(t.totalIGST)}</dd>
-                  </div>
-                ) : (
-                  <>
+                {!s.isExempt && (
+                  s.isInterstate ? (
                     <div className="flex justify-between">
-                      <dt className="text-ink-secondary">CGST</dt>
-                      <dd className="font-semibold">{money(t.totalCGST)}</dd>
+                      <dt className="text-ink-secondary">IGST</dt>
+                      <dd className="font-semibold">{money(t.totalIGST)}</dd>
                     </div>
-                    <div className="flex justify-between">
-                      <dt className="text-ink-secondary">SGST</dt>
-                      <dd className="font-semibold">{money(t.totalSGST)}</dd>
-                    </div>
-                  </>
+                  ) : (
+                    <>
+                      <div className="flex justify-between">
+                        <dt className="text-ink-secondary">CGST</dt>
+                        <dd className="font-semibold">{money(t.totalCGST)}</dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-ink-secondary">SGST</dt>
+                        <dd className="font-semibold">{money(t.totalSGST)}</dd>
+                      </div>
+                    </>
+                  )
                 )}
                 {Number.isFinite(t.roundOff) && Math.abs(t.roundOff) >= 0.005 && (
                   <div className="flex justify-between">
