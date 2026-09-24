@@ -19,9 +19,9 @@ function money(v: number): string {
   return Number.isFinite(v) ? fmtInr(v) : '—';
 }
 
-function numInput(v: string, fallback: number): number {
+function toNum(v: string): number {
   const n = parseDecimal(v);
-  return Number.isFinite(n) ? n : (v.trim() === '' ? NaN : fallback);
+  return Number.isFinite(n) ? n : NaN;
 }
 
 function ClientPicker({ label, value, clients, onPick }: { label: string; value: any; clients: any[]; onPick: (c: any) => void }) {
@@ -83,6 +83,15 @@ function ItemRow({ item, index, products, deletable }: { item: BuilderItem; inde
   const isInterstate = useBuilder((s) => s.isInterstate);
   const isExempt = useBuilder((s) => s.isExempt);
   const patch = (p: Partial<BuilderItem>) => updateItem(item.key, p);
+  const [qtyRaw, setQtyRaw] = useState(Number.isFinite(item.quantity) ? String(item.quantity) : '');
+  const [rateRaw, setRateRaw] = useState(Number.isFinite(item.rate) ? String(item.rate) : '');
+  const [gstRaw, setGstRaw] = useState(Number.isFinite(item.gstRate) ? String(item.gstRate) : '');
+  useEffect(() => { setQtyRaw(Number.isFinite(item.quantity) ? String(item.quantity) : ''); }, [item.quantity]);
+  useEffect(() => { setRateRaw(Number.isFinite(item.rate) ? String(item.rate) : ''); }, [item.rate]);
+  useEffect(() => { setGstRaw(Number.isFinite(item.gstRate) ? String(item.gstRate) : ''); }, [item.gstRate]);
+  const commitQty = () => patch({ quantity: toNum(qtyRaw) });
+  const commitRate = () => patch({ rate: toNum(rateRaw) });
+  const commitGst = () => patch({ gstRate: toNum(gstRaw) });
   return (
     <tr className="border-b border-border-color last:border-0 align-top">
       <td className="px-2 py-2.5 text-sm font-bold text-ink-tertiary w-8">{index + 1}</td>
@@ -97,18 +106,18 @@ function ItemRow({ item, index, products, deletable }: { item: BuilderItem; inde
         <input value={item.hsnCode} onChange={(e) => patch({ hsnCode: e.target.value })} placeholder="HSN" inputMode="numeric" className={`${cellCls} mt-1.5 font-mono`} aria-label={`Row ${index + 1} HSN`} />
       </td>
       <td className="px-2 py-2.5 w-[104px]">
-        <input value={Number.isFinite(item.quantity) ? String(item.quantity) : ''} onChange={(e) => patch({ quantity: numInput(e.target.value, NaN) })} inputMode="decimal" placeholder="Qty" className={cellCls} aria-label={`Row ${index + 1} quantity`} />
+        <input value={qtyRaw} onChange={(e) => setQtyRaw(e.target.value)} onBlur={commitQty} inputMode="decimal" placeholder="Qty" className={cellCls} aria-label={`Row ${index + 1} quantity`} />
         <select value={item.unit} onChange={(e) => patch({ unit: e.target.value })} className={`${cellCls} mt-1.5`} aria-label={`Row ${index + 1} unit`}>
           {UNITS.map((u) => (<option key={u} value={u}>{u}</option>))}
         </select>
         {item.unit === 'Custom' && (<input value={item.customUnit} onChange={(e) => patch({ customUnit: e.target.value })} placeholder="Custom unit" className={`${cellCls} mt-1.5`} aria-label={`Row ${index + 1} custom unit`} />)}
       </td>
       <td className="px-2 py-2.5 w-[112px]">
-        <input value={Number.isFinite(item.rate) ? String(item.rate) : ''} onChange={(e) => patch({ rate: numInput(e.target.value, NaN) })} inputMode="decimal" placeholder="0.00" className={cellCls} aria-label={`Row ${index + 1} rate`} />
+        <input value={rateRaw} onChange={(e) => setRateRaw(e.target.value)} onBlur={commitRate} inputMode="decimal" placeholder="0.00" className={cellCls} aria-label={`Row ${index + 1} rate`} />
       </td>
       {!isExempt && (
         <td className="px-2 py-2.5 w-[104px]">
-          <input value={Number.isFinite(item.gstRate) ? String(item.gstRate) : ''} onChange={(e) => patch({ gstRate: numInput(e.target.value, NaN) })} inputMode="decimal" list={`gst-slabs-${item.key}`} placeholder="GST %" className={cellCls} aria-label={`Row ${index + 1} GST percent`} />
+          <input value={gstRaw} onChange={(e) => setGstRaw(e.target.value)} onBlur={commitGst} inputMode="decimal" list={`gst-slabs-${item.key}`} placeholder="GST %" className={cellCls} aria-label={`Row ${index + 1} GST percent`} />
           <datalist id={`gst-slabs-${item.key}`}>{GST_SLABS.map((g) => (<option key={g} value={g} />))}</datalist>
         </td>
       )}
@@ -238,13 +247,16 @@ export default function QuotationBuilder() {
 
   const doSave = async (preview: boolean) => {
     if (saving || !ownerId) return;
+    if (document.activeElement?.tagName === 'INPUT') (document.activeElement as HTMLElement).blur();
+    await new Promise((r) => setTimeout(r, 0));
+    const cur = useBuilder.getState() as any;
     setSaveError(null);
-    const err = validateBuilder(s, isEdit);
+    const err = validateBuilder(cur, isEdit);
     if (err) { setSaveError(err); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
-    if (!s.billTo) { setSaveError('Select Bill To client'); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
-    if (!s.isExempt) {
-      for (let i = 0; i < s.items.length; i++) {
-        const g = validateGstRate(s.items[i].gstRate);
+    if (!cur.billTo) { setSaveError('Select Bill To client'); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    if (!cur.isExempt) {
+      for (let i = 0; i < cur.items.length; i++) {
+        const g = validateGstRate(cur.items[i].gstRate);
         if (g) { setSaveError(`Row ${i + 1}: ${g}`); return; }
       }
     }
@@ -255,9 +267,9 @@ export default function QuotationBuilder() {
         const prefix = 'QUO-';
         savedId = await createMut.mutateAsync({
           prefix,
-          draftId: useBuilder.getState().draftId,
+          draftId: cur.draftId,
           build: (number) => {
-            const q: any = buildNewInvoice(useBuilder.getState() as any, ownerId, { numberOverride: number });
+            const q: any = buildNewInvoice(cur as any, ownerId, { numberOverride: number });
             // Map invoice fields to quotation
             return {
               ownerId,
@@ -284,7 +296,7 @@ export default function QuotationBuilder() {
         });
         toast('Quotation saved');
       } else {
-        const q: any = buildNewInvoice(useBuilder.getState() as any, ownerId, { status: s.editStatus || 'draft' });
+        const q: any = buildNewInvoice(cur as any, ownerId, { status: cur.editStatus || 'draft' });
         const quotation: any = {
           ownerId,
           quotationNumber: q.invoiceNumber,

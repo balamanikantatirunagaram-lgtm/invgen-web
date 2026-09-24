@@ -152,9 +152,9 @@ function ClientPicker({
 // Item row (inline editable)
 // ---------------------------------------------------------------------------
 
-function numInput(v: string, fallback: number): number {
+function toNum(v: string): number {
   const n = parseDecimal(v);
-  return Number.isFinite(n) ? n : (v.trim() === '' ? NaN : fallback);
+  return Number.isFinite(n) ? n : NaN;
 }
 
 function ItemRow({
@@ -175,6 +175,17 @@ function ItemRow({
   const isExempt = useBuilder((s) => s.isExempt);
 
   const patch = (p: Partial<BuilderItem>) => updateItem(item.key, p);
+
+  // Keep raw text while typing; only commit on blur (fixes 10.50→1050 keystroke bug)
+  const [qtyRaw, setQtyRaw] = useState(Number.isFinite(item.quantity) ? String(item.quantity) : '');
+  const [rateRaw, setRateRaw] = useState(Number.isFinite(item.rate) ? String(item.rate) : '');
+  const [gstRaw, setGstRaw] = useState(Number.isFinite(item.gstRate) ? String(item.gstRate) : '');
+  useEffect(() => { setQtyRaw(Number.isFinite(item.quantity) ? String(item.quantity) : ''); }, [item.quantity]);
+  useEffect(() => { setRateRaw(Number.isFinite(item.rate) ? String(item.rate) : ''); }, [item.rate]);
+  useEffect(() => { setGstRaw(Number.isFinite(item.gstRate) ? String(item.gstRate) : ''); }, [item.gstRate]);
+  const commitQty = () => patch({ quantity: toNum(qtyRaw) });
+  const commitRate = () => patch({ rate: toNum(rateRaw) });
+  const commitGst = () => patch({ gstRate: toNum(gstRaw) });
 
   return (
     <tr className="border-b border-border-color last:border-0 align-top">
@@ -215,8 +226,9 @@ function ItemRow({
       </td>
       <td className="px-2 py-2.5 w-[104px]">
         <input
-          value={Number.isFinite(item.quantity) ? String(item.quantity) : ''}
-          onChange={(e) => patch({ quantity: numInput(e.target.value, NaN) })}
+          value={qtyRaw}
+          onChange={(e) => setQtyRaw(e.target.value)}
+          onBlur={commitQty}
           inputMode="decimal"
           placeholder="Qty"
           className={cellCls}
@@ -244,8 +256,9 @@ function ItemRow({
       </td>
       <td className="px-2 py-2.5 w-[112px]">
         <input
-          value={Number.isFinite(item.rate) ? String(item.rate) : ''}
-          onChange={(e) => patch({ rate: numInput(e.target.value, NaN) })}
+          value={rateRaw}
+          onChange={(e) => setRateRaw(e.target.value)}
+          onBlur={commitRate}
           inputMode="decimal"
           placeholder="0.00"
           className={cellCls}
@@ -255,8 +268,9 @@ function ItemRow({
       {!isExempt && (
         <td className="px-2 py-2.5 w-[104px]">
           <input
-            value={Number.isFinite(item.gstRate) ? String(item.gstRate) : ''}
-            onChange={(e) => patch({ gstRate: numInput(e.target.value, NaN) })}
+            value={gstRaw}
+            onChange={(e) => setGstRaw(e.target.value)}
+            onBlur={commitGst}
             inputMode="decimal"
             list={`gst-slabs-${item.key}`}
             placeholder="GST %"
@@ -373,17 +387,20 @@ export default function BuilderPage() {
       toast('Cancelled invoices cannot be saved.');
       return;
     }
+    // Flush any pending raw input (e.g. "10." typed but not blurred)
+    if (document.activeElement?.tagName === 'INPUT') (document.activeElement as HTMLElement).blur();
+    await new Promise((r) => setTimeout(r, 0));
+    const cur = useBuilder.getState();
     setSaveError(null);
-    const err = validateBuilder(s, isEdit);
+    const err = validateBuilder(cur, isEdit);
     if (err) {
       setSaveError(err);
-      // Scroll to error
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
-    if (!s.isExempt) {
-      for (let i = 0; i < s.items.length; i++) {
-        const g = validateGstRate(s.items[i].gstRate);
+    if (!cur.isExempt) {
+      for (let i = 0; i < cur.items.length; i++) {
+        const g = validateGstRate(cur.items[i].gstRate);
         if (g) {
           setSaveError(`Row ${i + 1}: ${g}`);
           return;
@@ -398,12 +415,12 @@ export default function BuilderPage() {
         const wantDraft = draftOverride === true;
         savedId = await createMut.mutateAsync({
           prefix,
-          draftId: useBuilder.getState().draftId,
-          build: (number) => buildNewInvoice(useBuilder.getState(), ownerId, { numberOverride: number, status: wantDraft ? 'draft' : 'issued' }),
+          draftId: cur.draftId,
+          build: (number) => buildNewInvoice(cur, ownerId, { numberOverride: number, status: wantDraft ? 'draft' : 'issued' }),
         });
         toast(wantDraft ? 'Draft saved' : 'Invoice issued');
       } else {
-        const inv = buildNewInvoice(useBuilder.getState(), ownerId, { status: s.editStatus || 'issued' });
+        const inv = buildNewInvoice(cur, ownerId, { status: cur.editStatus || 'issued' });
         await updateMut.mutateAsync({ id: editId as string, invoice: inv });
         savedId = editId as string;
         toast('Invoice saved');
