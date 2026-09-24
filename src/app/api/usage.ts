@@ -22,6 +22,7 @@ export async function countThisMonth(ownerId: string, kind: QuotaKind): Promise<
       .select('id', { count: 'exact', head: true })
       .eq('owner_id', ownerId)
       .gte('created_at', monthStartIso());
+    // Counts all non-cancelled (drafts + issued/paid). Cancelled free (round1 M4).
     if (typeof q.neq === 'function') q = q.neq('status', 'cancelled');
     const { count, error } = await q;
     if (error) throw error;

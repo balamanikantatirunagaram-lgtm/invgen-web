@@ -297,8 +297,14 @@ function CompanyIdentityForm() {
     if (!file) return;
     setLogoBusy(true);
     try {
-      setLogo(await pickAndEncodeLogo(file));
-      toast('Logo ready — tap Save to keep it');
+      const b64 = await pickAndEncodeLogo(file);
+      setLogo(b64);
+      // Auto-save logo immediately (R2-H2) — don't rely on bottom Save
+      if (ownerId && c) {
+        saveMut.mutate({ ...baseCompany(c), logoBase64: b64 }, { onSuccess: () => toast('Logo saved'), onError: (err) => toast(userMessage(err)) });
+      } else {
+        toast('Logo ready — tap Save to keep it');
+      }
     } catch (e) {
       toast(userMessage(e));
     } finally {
@@ -354,18 +360,17 @@ function CompanyIdentityForm() {
       ) : (
         <>
           <Card className="p-5 mb-3 flex items-center gap-4">
-            <div className="h-16 w-16 rounded-full bg-surface-soft border border-border-color flex items-center justify-center overflow-hidden shrink-0">
+            <div className="h-16 w-40 rounded-xl bg-surface-soft border border-border-color flex items-center justify-center overflow-hidden shrink-0 p-1">
               {logo && logoSrc(logo) ? (
-                <img src={logoSrc(logo) as string} alt="Company logo" className="h-full w-full object-cover" />
+                <img src={logoSrc(logo) as string} alt="Company logo" className="h-full w-full object-contain" />
               ) : (
                 <Building2 className="h-7 w-7 text-ink-tertiary" />
               )}
             </div>
             <div className="flex-1">
               <p className="font-bold">Company logo</p>
-              <p className="text-sm text-ink-secondary">
-                Stored in your profile. Prints on invoices.
-              </p>
+              <p className="text-xs text-ink-secondary">PNG or JPG, square or wide works best. Saved when you press Save.</p>
+              <p className="text-sm text-ink-secondary">Prints on invoices.</p>
             </div>
             <input
               ref={fileRef}
@@ -386,7 +391,10 @@ function CompanyIdentityForm() {
             </button>
             {logo !== '' && (
               <button
-                onClick={() => setLogo('')}
+                onClick={() => {
+                  setLogo('');
+                  if (ownerId && c) saveMut.mutate({ ...baseCompany(c), logoBase64: '' }, { onSuccess: () => toast('Logo removed'), onError: (e) => toast(userMessage(e)) });
+                }}
                 className="px-3 py-2 text-sm font-semibold text-red-700 hover:underline"
               >
                 Remove

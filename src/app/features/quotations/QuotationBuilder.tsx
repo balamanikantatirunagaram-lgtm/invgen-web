@@ -2,7 +2,8 @@ import { useTemplates } from '../../hooks/useTemplates';
 import { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Plus, Trash2 } from 'lucide-react';
-import { useClients, useCompany, useCreateQuotation, useOwnerId, useProducts, useQuotation, useUpdateQuotation } from '../../hooks/queries';
+import { useClients, useCompany, useCreateQuotation, useOwnerId, useProducts, useQuota, useQuotation, useUpdateQuotation } from '../../hooks/queries';
+import { FREE_MONTHLY_LIMIT } from '../../api/usage';
 import { useSession } from '../../stores/session';
 import { userMessage, AppError } from '../../lib/errors';
 import { GST_SLABS, UNITS } from '../../lib/constants';
@@ -145,6 +146,8 @@ export default function QuotationBuilder() {
   const [companyBound, setCompanyBound] = useState(false);
   const company = companyQuery.data;
   const clients = useMemo(() => clientsQuery.data ?? [], [clientsQuery.data]);
+  const quota = useQuota('quotations').data ?? 0;
+  const atLimit = !isEdit && quota >= FREE_MONTHLY_LIMIT;
 
   const profile = useSession((st) => st.profile);
   const isExempt = profile?.gstExempt === true && !profile?.gstVerified;
@@ -311,7 +314,7 @@ export default function QuotationBuilder() {
       navigate(preview ? `/app/quotations/${savedId}` : '/app/quotations');
     } catch (e) {
       if (e instanceof AppError && e.kind === 'quota') {
-        navigate('/app/limit-reached', { state: { kind: 'quotations' } });
+        setSaveError(userMessage(e));
         return;
       }
       setSaveError(userMessage(e));
@@ -339,6 +342,11 @@ export default function QuotationBuilder() {
         </div>
       </div>
       {saveError && <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-medium text-red-800">{saveError}</div>}
+      {atLimit && (
+        <div className="mb-4 rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-sm font-medium text-amber-900">
+          Free limit reached: {quota} of {FREE_MONTHLY_LIMIT} quotations this month. <Link to="/contact" className="underline">Contact admin</Link> for extension. Saving is blocked until next month.
+        </div>
+      )}
       <div className="grid 2xl:grid-cols-[320px_minmax(0,1fr)_300px] xl:grid-cols-[300px_minmax(0,1fr)] gap-4 items-start">
         <div className="space-y-4">
           <Card className="p-5 space-y-4">
@@ -392,8 +400,8 @@ export default function QuotationBuilder() {
               <p className="text-xs text-ink-secondary mt-3 leading-relaxed break-words">{s.amountInWords === '' ? '—' : s.amountInWords}</p>
             </Card>
             <div className="grid grid-cols-2 2xl:grid-cols-1 gap-2">
-              <button onClick={() => doSave(false)} disabled={saving} className="py-3.5 rounded-xl bg-ink text-surface font-bold hover:bg-ink-secondary disabled:opacity-60">{saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Save Quotation'}</button>
-              <button onClick={() => doSave(true)} disabled={saving} className="py-3.5 rounded-xl border border-border-strong font-bold hover:bg-surface disabled:opacity-60 bg-surface">{saving ? 'Saving…' : 'Save & Preview'}</button>
+              <button onClick={() => doSave(false)} disabled={saving || atLimit} className="py-3.5 rounded-xl bg-ink text-surface font-bold hover:bg-ink-secondary disabled:opacity-60">{saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Save Quotation'}</button>
+              <button onClick={() => doSave(true)} disabled={saving || atLimit} className="py-3.5 rounded-xl border border-border-strong font-bold hover:bg-surface disabled:opacity-60 bg-surface">{saving ? 'Saving…' : 'Save & Preview'}</button>
             </div>
             <Link to="/app/quotations" className="block text-center text-sm font-semibold text-ink-secondary hover:text-ink">← Back to quotations</Link>
           </div>

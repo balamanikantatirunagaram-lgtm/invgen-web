@@ -475,12 +475,16 @@ function FooterSplit({
         <SectionTitle text="Amount in Words" templateDef={templateDef} />
         <Text style={styles.smallBold}>{inv.amountInWords}</Text>
         <View style={{ height: 6 }} />
-        <SectionTitle text="Terms & Conditions" templateDef={templateDef} />
-        {company.termsAndConditions.map((t, i) => (
-          <Text key={i} style={styles.tiny}>
-            {i + 1}. {t}
-          </Text>
-        ))}
+        {company.termsAndConditions.length > 0 && (
+          <>
+            <SectionTitle text="Terms & Conditions" templateDef={templateDef} />
+            {company.termsAndConditions.map((t, i) => (
+              <Text key={i} style={styles.tiny}>
+                {i + 1}. {t}
+              </Text>
+            ))}
+          </>
+        )}
       </View>
       <View style={{ width: 12 }} />
       <View style={{ flex: 2 }}>{totals}</View>
@@ -518,12 +522,34 @@ function Watermark() {
   );
 }
 
+function DraftWatermark() {
+  return (
+    <Canvas
+      fixed
+      style={{ position: 'absolute', top: 0, left: 0, width: 595, height: 842 }}
+      paint={(p, w, h) => {
+        p.save()
+          .translate(w / 2, h / 2)
+          .rotate(-30)
+          .font('Helvetica-Bold')
+          .fontSize(90)
+          .fillColor('#ff0000')
+          .fillOpacity(0.08)
+          .text('DRAFT', -120, 0)
+          .restore();
+        return null;
+      }}
+    />
+  );
+}
+
 export function InvoiceDocument({
   inv,
   company,
   templateDef,
   docTitle = 'TAX INVOICE',
   watermark = true,
+  draft = false,
 }: {
   inv: Invoice;
   company: CompanySettings;
@@ -532,10 +558,12 @@ export function InvoiceDocument({
   docTitle?: string;
   /** INVGEN watermark; resolved from global + per-user flags by callers. */
   watermark?: boolean;
+  draft?: boolean;
 }) {
   
   const logoSrc = logoDataUrl(company.logoBase64);
   const today = fmtDate(new Date());
+  const isDraft = draft || inv.status === 'draft';
 
 
   if (templateDef.base_layout === 'agency') {
@@ -545,6 +573,7 @@ export function InvoiceDocument({
       <Document title={`${docTitle} ${inv.invoiceNumber}`}>
         <Page size="A4" style={{ backgroundColor: '#ffffff', padding: 40, position: 'relative' }}>
           {watermark && <Watermark />}
+          {isDraft && <DraftWatermark />}
           {/* Background decorative circles */}
           <View style={{ position: 'absolute', top: -40, right: -40, width: 140, height: 140, borderRadius: 70, backgroundColor: '#eef2ff' }} />
           <View style={{ position: 'absolute', top: -15, right: -15, width: 85, height: 85, borderRadius: 50, backgroundColor: '#667eea', opacity: 0.9 }} />
@@ -699,6 +728,7 @@ export function InvoiceDocument({
     <Document title={`${docTitle} ${inv.invoiceNumber}`}>
       <Page size="A4" style={styles.page}>
         {watermark && <Watermark />}
+        {isDraft && <DraftWatermark />}
         <PageHeader inv={inv} company={company} templateDef={templateDef} docTitle={docTitle} />
         <View style={{ height: 8 }} />
         <IssuerBlock company={company} logoSrc={logoSrc} templateDef={templateDef} />

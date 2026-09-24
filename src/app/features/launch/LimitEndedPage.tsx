@@ -21,10 +21,17 @@ export default function LimitEndedPage() {
       </p>
       <div className="flex flex-col sm:flex-row justify-center gap-3">
         <a
-          href="/contact"
+          href={`/contact?subject=${encodeURIComponent(`Request extension for ${label}`)}&message=${encodeURIComponent(`Hi, I've hit the 20 ${label} free limit this month. Please extend my quota. My account email is listed on my profile.`)}`}
           className="px-6 py-3 rounded-xl bg-ink text-surface font-semibold hover:bg-ink-secondary transition-colors"
         >
-          Contact admin
+          Request extension
+        </a>
+        <a
+          href={`https://wa.me/?text=${encodeURIComponent(`Hi InvGen team, I've hit the 20 ${label} free limit. Please extend my quota.`)}`}
+          target="_blank" rel="noreferrer"
+          className="px-6 py-3 rounded-xl border border-border-strong font-semibold hover:bg-surface-soft transition-colors"
+        >
+          WhatsApp us
         </a>
         <Link
           to={back}

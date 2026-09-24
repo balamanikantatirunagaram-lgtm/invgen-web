@@ -37,20 +37,40 @@ export async function pickAndEncodeLogo(file: File): Promise<string> {
   const w = Math.max(1, Math.round(img.width * scale));
   const h = Math.max(1, Math.round(img.height * scale));
 
+  const isPng = file.type === 'image/png';
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Image processing is not available in this browser.');
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, w, h);
+  if (!isPng) {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, w, h);
+  } else {
+    ctx.clearRect(0, 0, w, h);
+  }
   ctx.drawImage(img, 0, 0, w, h);
 
+  const mime = isPng ? 'image/png' : 'image/jpeg';
   let quality = 0.85;
-  let dataUrl = canvas.toDataURL('image/jpeg', quality);
-  while (dataUrl.length * 0.75 > MAX_BYTES && quality > 0.4) {
-    quality -= 0.1;
-    dataUrl = canvas.toDataURL('image/jpeg', quality);
+  let dataUrl = canvas.toDataURL(mime, quality);
+  // For PNG, quality param ignored; try scaling down further if too large
+  if (isPng) {
+    let curW = w, curH = h;
+    while (dataUrl.length * 0.75 > MAX_BYTES && curW > 64) {
+      curW = Math.round(curW * 0.8);
+      curH = Math.round(curH * 0.8);
+      canvas.width = curW; canvas.height = curH;
+      const c2 = canvas.getContext('2d')!;
+      c2.clearRect(0, 0, curW, curH);
+      c2.drawImage(img, 0, 0, curW, curH);
+      dataUrl = canvas.toDataURL('image/png');
+    }
+  } else {
+    while (dataUrl.length * 0.75 > MAX_BYTES && quality > 0.4) {
+      quality -= 0.1;
+      dataUrl = canvas.toDataURL('image/jpeg', quality);
+    }
   }
   const marker = ';base64,';
   const idx = dataUrl.indexOf(marker);

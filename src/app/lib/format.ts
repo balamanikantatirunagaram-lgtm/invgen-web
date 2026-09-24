@@ -49,6 +49,25 @@ export function parseDecimal(raw: string): number {
   return Number.isFinite(n) ? n : NaN;
 }
 
+export function sanitizeFilename(s: string): string {
+  return s.trim().replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'Client';
+}
+
+export function invoicePdfFilename(inv: { invoiceNumber: string; billTo: { businessName: string }; invoiceDate: Date; status: string }): string {
+  const base = inv.invoiceNumber.replace(/\//g, '-');
+  const client = sanitizeFilename(inv.billTo?.businessName ?? '');
+  const date = `${inv.invoiceDate.getFullYear()}-${String(inv.invoiceDate.getMonth() + 1).padStart(2, '0')}-${String(inv.invoiceDate.getDate()).padStart(2, '0')}`;
+  const draft = inv.status === 'draft' ? '_DRAFT' : '';
+  return `${base}_${client}_${date}${draft}.pdf`;
+}
+export function quotationPdfFilename(q: { quotationNumber: string; billTo: { businessName: string }; quotationDate: Date; status: string }): string {
+  const base = q.quotationNumber.replace(/\//g, '-');
+  const client = sanitizeFilename(q.billTo?.businessName ?? '');
+  const date = `${q.quotationDate.getFullYear()}-${String(q.quotationDate.getMonth() + 1).padStart(2, '0')}-${String(q.quotationDate.getDate()).padStart(2, '0')}`;
+  const draft = q.status === 'draft' ? '_DRAFT' : '';
+  return `${base}_${client}_${date}${draft}.pdf`;
+}
+
 /** Strict parse of dd-MM-yyyy. Throws on invalid input. */
 export function parseDmy(s: string): Date {
   const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(s.trim());

@@ -23,7 +23,7 @@ import {
 } from '../../hooks/queries';
 import { AppError, userMessage } from '../../lib/errors';
 import { FREE_MONTHLY_LIMIT } from '../../api/usage';
-import { fmtDate, fmtInr, fmtQty } from '../../lib/format';
+import { fmtDate, fmtInr, fmtQty, invoicePdfFilename } from '../../lib/format';
 import { INVOICE_STATUSES, type InvoiceStatus } from '../../lib/constants';
 import type { Invoice, InvoiceFilter } from '../../api/types';
 // NOTE: buildPdf (@react-pdf/renderer) is dynamic-imported in doPrint so the
@@ -103,8 +103,9 @@ export default function LedgerPage() {
       const bytes = await buildInvoicePdf(inv, company, inv.template ?? company.invoiceTemplate, {
         docTitle: docTitleFor(company),
         watermark,
+        draft: inv.status === 'draft',
       });
-      await printPdf(bytes, `${inv.invoiceNumber}.pdf`);
+      await printPdf(bytes, invoicePdfFilename(inv));
     } catch (e) {
       toast(userMessage(e));
     } finally {
@@ -122,8 +123,9 @@ export default function LedgerPage() {
       const bytes = await buildInvoicePdf(inv, company, inv.template ?? company.invoiceTemplate, {
         docTitle: docTitleFor(company),
         watermark,
+        draft: inv.status === 'draft',
       });
-      const filename = `${inv.invoiceNumber.replace(/\//g, '-')}.pdf`;
+      const filename = invoicePdfFilename(inv);
       const file = new File([bytes.slice()], filename, { type: 'application/pdf' });
       if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file], title: filename });

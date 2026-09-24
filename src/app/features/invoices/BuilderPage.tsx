@@ -9,8 +9,10 @@ import {
   useInvoice,
   useOwnerId,
   useProducts,
+  useQuota,
   useUpdateInvoice,
 } from '../../hooks/queries';
+import { FREE_MONTHLY_LIMIT } from '../../api/usage';
 import { useSession } from '../../stores/session';
 import { userMessage, AppError } from '../../lib/errors';
 import { COPY_TYPES, GST_SLABS, UNITS } from '../../lib/constants';
@@ -320,6 +322,8 @@ export default function BuilderPage() {
   const company = companyQuery.data;
   const clients = useMemo(() => clientsQuery.data ?? [], [clientsQuery.data]);
   const products = useProducts().data ?? [];
+  const quota = useQuota('invoices').data ?? 0;
+  const atLimit = !isEdit && quota >= FREE_MONTHLY_LIMIT;
 
   // Create mode: fresh form on mount.
   useEffect(() => {
@@ -408,7 +412,7 @@ export default function BuilderPage() {
       navigate(preview ? `/app/invoices/${savedId}` : '/app/invoices');
     } catch (e) {
       if (e instanceof AppError && e.kind === 'quota') {
-        navigate('/app/limit-reached', { state: { kind: 'invoices' } });
+        setSaveError(userMessage(e));
         return;
       }
       setSaveError(userMessage(e));
@@ -490,6 +494,11 @@ export default function BuilderPage() {
       {saveError && (
         <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-medium text-red-800">
           {saveError}
+        </div>
+      )}
+      {atLimit && (
+        <div className="mb-4 rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-sm font-medium text-amber-900">
+          Free limit reached: {quota} of {FREE_MONTHLY_LIMIT} invoices this month. <Link to="/contact" className="underline">Contact admin</Link> for extension — or delete a draft to free a slot. Saving is blocked until next month.
         </div>
       )}
 
@@ -702,10 +711,10 @@ export default function BuilderPage() {
             <div className="grid grid-cols-2 2xl:grid-cols-1 gap-2">
               {!isEdit ? (
                 <>
-                  <button onClick={() => doSave(false, true)} disabled={saving || cancelled} className="py-3.5 rounded-xl border border-border-strong font-bold hover:bg-surface disabled:opacity-60 bg-surface">
+                  <button onClick={() => doSave(false, true)} disabled={saving || cancelled || atLimit} className="py-3.5 rounded-xl border border-border-strong font-bold hover:bg-surface disabled:opacity-60 bg-surface">
                     {saving ? 'Saving…' : 'Save as Draft'}
                   </button>
-                  <button onClick={() => doSave(false, false)} disabled={saving || cancelled} className="py-3.5 rounded-xl bg-ink text-surface font-bold hover:bg-ink-secondary disabled:opacity-60">
+                  <button onClick={() => doSave(false, false)} disabled={saving || cancelled || atLimit} className="py-3.5 rounded-xl bg-ink text-surface font-bold hover:bg-ink-secondary disabled:opacity-60">
                     {saving ? 'Saving…' : 'Save & Issue'}
                   </button>
                 </>

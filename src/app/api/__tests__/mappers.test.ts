@@ -242,7 +242,7 @@ describe('applyInvoiceFilter', () => {
         { from: new Date('2026-09-01T00:00:00Z'), to: new Date('2026-09-30T00:00:00Z') },
         20,
       ).map((i) => i.invoiceId),
-    ).toEqual(['a', 'c']);
+    ).toEqual(['c', 'a']);
     expect(applyInvoiceFilter(list, {}, 2)).toHaveLength(2);
   });
 });

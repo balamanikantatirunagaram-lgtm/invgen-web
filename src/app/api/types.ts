@@ -513,7 +513,11 @@ export function applyInvoiceFilter(
   filter: InvoiceFilter,
   limit: number,
 ): Invoice[] {
-  let out = list;
+  let out = [...list].sort((a, b) => {
+    const d = b.invoiceDate.getTime() - a.invoiceDate.getTime();
+    if (d !== 0) return d;
+    return b.invoiceNumber.localeCompare(a.invoiceNumber);
+  });
   if (filter.from) {
     const from = filter.from;
     out = out.filter((i) => i.invoiceDate.getTime() >= from.getTime());
@@ -629,7 +633,11 @@ export function applyQuotationFilter(
   filter: QuotationFilter,
   limit: number,
 ): Quotation[] {
-  let out = list;
+  let out = [...list].sort((a, b) => {
+    const d = b.quotationDate.getTime() - a.quotationDate.getTime();
+    if (d !== 0) return d;
+    return b.quotationNumber.localeCompare(a.quotationNumber);
+  });
   if (filter.from) {
     const from = filter.from;
     out = out.filter((q) => q.quotationDate.getTime() >= from.getTime());

@@ -4,7 +4,7 @@ import { Download, Pencil, Printer, RefreshCw, Trash2, ArrowRight, Share2 } from
 import { useCompany, useConvertQuotation, useDeleteQuotation, useOwnerId, useQuota, useQuotations, useSetQuotationStatus, useWatermark } from '../../hooks/queries';
 import { AppError, userMessage } from '../../lib/errors';
 import { FREE_MONTHLY_LIMIT } from '../../api/usage';
-import { fmtDate, fmtInr } from '../../lib/format';
+import { fmtDate, fmtInr, quotationPdfFilename } from '../../lib/format';
 import { QUOTATION_STATUSES } from '../../api/types';
 import type { Quotation, QuotationFilter } from '../../api/types';
 import { printPdf } from '../../pdf/print';
@@ -87,8 +87,8 @@ export default function QuotationsPage() {
         updatedAt: q.updatedAt,
         cancelledAt: null,
       } as never;
-      const bytes = await buildInvoicePdf(fakeInvoice as never, company, q.template, { docTitle: 'QUOTATION', watermark });
-      await printPdf(bytes, `${q.quotationNumber}.pdf`);
+      const bytes = await buildInvoicePdf(fakeInvoice as never, company, q.template, { docTitle: 'QUOTATION', watermark, draft: q.status === 'draft' });
+      await printPdf(bytes, quotationPdfFilename(q));
     } catch (e) {
       toast(userMessage(e));
     } finally {
@@ -133,8 +133,8 @@ export default function QuotationsPage() {
         updatedAt: q.updatedAt,
         cancelledAt: null,
       } as never;
-      const bytes = await buildInvoicePdf(fakeInvoice as never, company, q.template, { docTitle: 'QUOTATION', watermark });
-      const filename = `${q.quotationNumber.replace(/\//g, '-')}.pdf`;
+      const bytes = await buildInvoicePdf(fakeInvoice as never, company, q.template, { docTitle: 'QUOTATION', watermark, draft: q.status === 'draft' });
+      const filename = quotationPdfFilename(q);
       const file = new File([bytes.slice()], filename, { type: 'application/pdf' });
       if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file], title: filename });
@@ -160,12 +160,17 @@ export default function QuotationsPage() {
     convertMut.mutate(
       { quotation: q, invoicePrefix: prefix },
       {
-        onSuccess: (invoiceId) => {
-          toast(`Converted to invoice ${invoiceId.slice(0, 8)}`);
+        onSuccess: async (invoiceId) => {
+          try {
+            const { fetchInvoiceById } = await import('../../api/invoices');
+            const inv = await fetchInvoiceById(invoiceId);
+            toast(inv ? `Converted to ${inv.invoiceNumber}` : 'Converted to invoice');
+          } catch { toast('Converted to invoice'); }
           navigate(`/app/invoices/${invoiceId}`);
         },
         onError: (e) => {
           if (e instanceof AppError && e.kind === 'quota') {
+            toast(userMessage(e));
             navigate('/app/limit-reached', { state: { kind: 'invoices' } });
             return;
           }

@@ -295,7 +295,7 @@ export function UsageBar({ used, limit, label }: { used: number; limit: number; 
       className={`mb-4 rounded-2xl border px-5 py-4 ${
         full ? 'border-red-200 bg-red-50' : 'border-border-color bg-surface'
       }`}
-      title={`Free ${label} used this month`}
+      title={`Free ${label} used this month — counts drafts + issued (cancelled excluded), resets 1st`}
     >
       <div className="flex items-center justify-between gap-3 text-sm">
         <p className="font-bold">
