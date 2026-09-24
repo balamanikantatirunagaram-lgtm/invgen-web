@@ -14,6 +14,31 @@
 import { getSupabase } from '../supabase/client';
 import { AppError, mapSupabase } from '../lib/errors';
 
+export type GstErrorCode = 'GST_SERVICE_UNAVAILABLE' | 'INVALID_GSTIN' | 'GST_TIMEOUT';
+
+export const GST_FRIENDLY_MESSAGE: Record<GstErrorCode, string> = {
+  GST_SERVICE_UNAVAILABLE:
+    'GST lookup is temporarily unavailable. You can continue in simple-bill mode and add your GSTIN later from Settings.',
+  INVALID_GSTIN: "We couldn't find this GSTIN. Check the 15 characters and try again.",
+  GST_TIMEOUT: 'Something went wrong. Try again.',
+};
+
+export function gstMessageForCode(code: string): string {
+  if (code === 'GST_SERVICE_UNAVAILABLE') return GST_FRIENDLY_MESSAGE.GST_SERVICE_UNAVAILABLE;
+  if (code === 'INVALID_GSTIN') return GST_FRIENDLY_MESSAGE.INVALID_GSTIN;
+  if (code === 'GST_TIMEOUT') return GST_FRIENDLY_MESSAGE.GST_TIMEOUT;
+  return 'Something went wrong. Try again.';
+}
+
+export function isGstUnavailableError(e: unknown): boolean {
+  return (e as { code?: string })?.code === 'GST_SERVICE_UNAVAILABLE';
+}
+
+function attachCode(err: AppError, code: GstErrorCode): AppError {
+  (err as unknown as { code: string }).code = code;
+  return err;
+}
+
 /** Normalized taxpayer details used to prefill company/client forms. */
 export interface GstVerificationResult {
   gstin: string;
@@ -209,6 +234,7 @@ async function viaDirectKey(gst: string): Promise<Record<string, unknown>> {
 /**
  * Verify a GSTIN and return normalized taxpayer info.
  * Serves fresh cache first; throws AppError on validation / network / API error.
+ * Maps edge-function codes to friendly copy; never surfaces provider URLs/phones.
  */
 export async function verifyGst(
   gstNo: string,
@@ -232,18 +258,38 @@ export async function verifyGst(
     if (import.meta.env.DEV && (import.meta.env.VITE_APPYFLOW_KEY as string | undefined)?.trim()) {
       json = await viaDirectKey(gst);
     } else {
+      // Map supabase-js FunctionsError / network to friendly codes
+      const msg = String((edgeError as { message?: string })?.message ?? '').toLowerCase();
+      if (msg.includes('timeout') || msg.includes('504') || msg.includes('timed out')) {
+        throw attachCode(new AppError('unknown', gstMessageForCode('GST_TIMEOUT')), 'GST_TIMEOUT');
+      }
       throw mapSupabase(edgeError);
     }
   }
 
-  // Appyflow signals errors via `error: true` + `message`.
+  // Edge function returns { error:true, code:"..." } — map to friendly copy.
   if (json['error'] === true) {
-    const msg = s(json['message'] ?? json['msg'] ?? 'GST not found.');
-    throw AppError.validation(msg);
+    const code = String(json['code'] ?? '').trim();
+    if (code === 'GST_SERVICE_UNAVAILABLE' || code === 'GST_TIMEOUT' || code === 'INVALID_GSTIN') {
+      const friendly = gstMessageForCode(code);
+      if (code === 'GST_SERVICE_UNAVAILABLE') throw attachCode(new AppError('unknown', friendly), code as GstErrorCode);
+      if (code === 'GST_TIMEOUT') throw attachCode(new AppError('unknown', friendly), code as GstErrorCode);
+      throw attachCode(AppError.validation(friendly), code as GstErrorCode);
+    }
+    // Legacy fallback: edge returned message without code (should not happen post-deploy)
+    const rawMsg = s(json['message'] ?? json['msg'] ?? 'GST not found.');
+    const m = rawMsg.toLowerCase();
+    if (m.includes('limit exceed') || m.includes('quota') || m.includes('auth') || m.includes('unavailable')) {
+      throw attachCode(AppError.unknown(gstMessageForCode('GST_SERVICE_UNAVAILABLE')), 'GST_SERVICE_UNAVAILABLE');
+    }
+    if (m.includes('invalid') || m.includes('not found')) {
+      throw attachCode(AppError.validation(gstMessageForCode('INVALID_GSTIN')), 'INVALID_GSTIN');
+    }
+    throw attachCode(AppError.validation(gstMessageForCode('INVALID_GSTIN')), 'INVALID_GSTIN');
   }
   const result = parseGstResult(json);
   if (result.gstin === '') {
-    throw AppError.validation(`GST details not found for ${gst}.`);
+    throw attachCode(AppError.validation(gstMessageForCode('INVALID_GSTIN')), 'INVALID_GSTIN');
   }
   assertActiveIfRequired(result, opts.requireActive ?? false);
   writeGstCache(gst, json);

@@ -1,9 +1,13 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import {
   assertActiveIfRequired,
+  GST_FRIENDLY_MESSAGE,
   gstDisplayName,
+  gstMessageForCode,
+  isGstUnavailableError,
   parseGstResult,
   readGstCache,
+  verifyGst,
   writeGstCache,
 } from '../gstVerify';
 import { AppError } from '../../lib/errors';
@@ -92,5 +96,72 @@ describe('gst cache', () => {
     expect(back?.tradeName).toBe('Acme Traders');
     // Corrupt entry for an uncached key must read as null, never throw.
     expect(readGstCache('DEFINITELY-UNCACHED-KEY')).toBeNull();
+  });
+});
+
+describe('gstMessageForCode', () => {
+  test('maps codes to friendly copy, unknown falls back', () => {
+    expect(gstMessageForCode('GST_SERVICE_UNAVAILABLE')).toBe(GST_FRIENDLY_MESSAGE.GST_SERVICE_UNAVAILABLE);
+    expect(gstMessageForCode('GST_SERVICE_UNAVAILABLE')).toContain('simple-bill mode');
+    expect(gstMessageForCode('INVALID_GSTIN')).toBe(GST_FRIENDLY_MESSAGE.INVALID_GSTIN);
+    expect(gstMessageForCode('INVALID_GSTIN')).toContain('15 characters');
+    expect(gstMessageForCode('GST_TIMEOUT')).toBe(GST_FRIENDLY_MESSAGE.GST_TIMEOUT);
+    expect(gstMessageForCode('UNKNOWN_CODE')).toBe('Something went wrong. Try again.');
+    expect(gstMessageForCode('')).toBe('Something went wrong. Try again.');
+  });
+
+  test('isGstUnavailableError detects code', () => {
+    const errUnavailable = Object.assign(new AppError('unknown', 'x'), { code: 'GST_SERVICE_UNAVAILABLE' });
+    const errInvalid = Object.assign(new AppError('validation', 'y'), { code: 'INVALID_GSTIN' });
+    expect(isGstUnavailableError(errUnavailable)).toBe(true);
+    expect(isGstUnavailableError(errInvalid)).toBe(false);
+    expect(isGstUnavailableError(new Error('no code'))).toBe(false);
+  });
+});
+
+describe('verifyGst code mapping', () => {
+  test('maps edge codes to friendly errors with code attached', async () => {
+    // Use vi.spyOn on the actual client module
+    const clientMod = await import('../../supabase/client');
+
+    const invokeMock1 = vi.fn().mockResolvedValue({ data: { error: true, code: 'GST_SERVICE_UNAVAILABLE' }, error: null });
+    const spy1 = vi.spyOn(clientMod, 'getSupabase').mockReturnValue({ functions: { invoke: invokeMock1 } } as unknown as ReturnType<typeof import('../../supabase/client')['getSupabase']>);
+    await expect(verifyGst('27ABCDE1234F1Z9')).rejects.toSatisfy((e: unknown) => {
+      const err = e as AppError & { code?: string };
+      return err.message === GST_FRIENDLY_MESSAGE.GST_SERVICE_UNAVAILABLE && err.code === 'GST_SERVICE_UNAVAILABLE';
+    });
+    spy1.mockRestore();
+
+    const invokeMock2 = vi.fn().mockResolvedValue({ data: { error: true, code: 'INVALID_GSTIN' }, error: null });
+    const spy2 = vi.spyOn(clientMod, 'getSupabase').mockReturnValue({ functions: { invoke: invokeMock2 } } as unknown as ReturnType<typeof import('../../supabase/client')['getSupabase']>);
+    await expect(verifyGst('27ABCDE1234F1ZA')).rejects.toSatisfy((e: unknown) => {
+      const err = e as AppError & { code?: string };
+      return err.message === GST_FRIENDLY_MESSAGE.INVALID_GSTIN && err.code === 'INVALID_GSTIN';
+    });
+    spy2.mockRestore();
+
+    const invokeMock3 = vi.fn().mockResolvedValue({ data: { error: true, code: 'GST_TIMEOUT' }, error: null });
+    const spy3 = vi.spyOn(clientMod, 'getSupabase').mockReturnValue({ functions: { invoke: invokeMock3 } } as unknown as ReturnType<typeof import('../../supabase/client')['getSupabase']>);
+    await expect(verifyGst('27ABCDE1234F1ZB')).rejects.toSatisfy((e: unknown) => {
+      const err = e as AppError & { code?: string };
+      return err.message === GST_FRIENDLY_MESSAGE.GST_TIMEOUT && err.code === 'GST_TIMEOUT';
+    });
+    spy3.mockRestore();
+
+    // Never forwards raw provider help/phone - even Limit Exceed is mapped to unavailable
+    const invokeMock4 = vi.fn().mockResolvedValue({ data: { error: true, code: 'GST_SERVICE_UNAVAILABLE' }, error: null });
+    const spy4 = vi.spyOn(clientMod, 'getSupabase').mockReturnValue({ functions: { invoke: invokeMock4 } } as unknown as ReturnType<typeof import('../../supabase/client')['getSupabase']>);
+    try {
+      await verifyGst('27ABCDE1234F1ZC');
+      expect.unreachable('should have thrown');
+    } catch (e) {
+      const msg = (e as Error).message;
+      expect(msg).not.toContain('Limit Exceed');
+      expect(msg).not.toContain('+91');
+      expect(msg).not.toContain('Appyflow');
+      expect(msg).not.toContain('http');
+      expect(msg).toBe(GST_FRIENDLY_MESSAGE.GST_SERVICE_UNAVAILABLE);
+    }
+    spy4.mockRestore();
   });
 });

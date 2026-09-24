@@ -11,6 +11,7 @@ import { fetchCompany, saveCompany } from '../../api/companies';
 import { fetchProfile, saveProfile } from '../../api/profiles';
 import {
   gstDisplayName,
+  isGstUnavailableError,
   verifyGst,
   type GstVerificationResult,
 } from '../../api/gstVerify';
@@ -36,6 +37,7 @@ export default function VerifyGstPage() {
   const [consent, setConsent] = useState(false);
   const [result, setResult] = useState<GstVerificationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [gstErrorCode, setGstErrorCode] = useState<string | null>(null);
 
   // Exempt (no-GSTIN) mode.
   const upgrading = profile?.gstExempt === true;
@@ -54,11 +56,13 @@ export default function VerifyGstPage() {
     setVerifying(true);
     setResult(null);
     setError(null);
+    setGstErrorCode(null);
     try {
       const r = await verifyGst(gstin, { requireActive: true });
       setResult(r);
     } catch (e) {
       setError(userMessage(e));
+      setGstErrorCode((e as { code?: string })?.code ?? (isGstUnavailableError(e) ? 'GST_SERVICE_UNAVAILABLE' : null));
     } finally {
       setVerifying(false);
     }
@@ -316,6 +320,8 @@ export default function VerifyGstPage() {
               setGstin(e.target.value.toUpperCase());
               setResult(null);
               setFieldError(null);
+              setError(null);
+              setGstErrorCode(null);
             }}
             maxLength={15}
             placeholder="e.g. 27ABCDE1234F1Z5"
@@ -335,9 +341,27 @@ export default function VerifyGstPage() {
           </button>
 
           {error && (
-            <p className="mt-4 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-              {error}
-            </p>
+            <div className="mt-4 space-y-3">
+              <p className="text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                {error}
+              </p>
+              {gstErrorCode === 'GST_SERVICE_UNAVAILABLE' && (
+                <button
+                  onClick={() => {
+                    if (upgrading) {
+                      navigate('/app/dashboard', { replace: true });
+                    } else {
+                      setMode('skip');
+                    }
+                    setError(null);
+                    setGstErrorCode(null);
+                  }}
+                  className="w-full py-3 rounded-xl border border-border-strong bg-surface font-semibold hover:bg-surface-soft transition-colors"
+                >
+                  Continue without GSTIN
+                </button>
+              )}
+            </div>
           )}
 
           {!upgrading && (
